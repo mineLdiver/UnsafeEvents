@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+group 'net.mine_diver'
+version '1.0'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "Jitpack"
+        url 'https://jitpack.io/'
+    }
+}
+
+sourceSets {
+    jmh {
+        java.srcDirs = ['src/jmh/java']
+        resources.srcDirs = ['src/jmh/resources']
+        compileClasspath += sourceSets.main.runtimeClasspath
+    }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+
+    implementation 'org.ow2.asm:asm:9.0'
+    implementation 'org.ow2.asm:asm-analysis:9.0'
+    implementation 'org.ow2.asm:asm-commons:9.0'
+    implementation 'org.ow2.asm:asm-tree:9.0'
+    implementation 'org.ow2.asm:asm-util:9.0'
+
+    implementation "com.github.jhalterman:typetools:87240d6"
+
+    implementation 'com.google.guava:guava:28.0-jre'
+
+    compileOnly 'org.projectlombok:lombok:1.18.16'
+    annotationProcessor 'org.projectlombok:lombok:1.18.16'
+
+    compile 'org.jetbrains:annotations:16.0.2'
+
+    jmhImplementation 'org.openjdk.jmh:jmh-core:1.21'
+    jmhImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.21'
+    jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.21'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+task jmh(type: JavaExec, dependsOn: jmhClasses) {
+    main = 'org.openjdk.jmh.Main'
+    classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
+}
+
+classes.finalizedBy(jmhClasses)
