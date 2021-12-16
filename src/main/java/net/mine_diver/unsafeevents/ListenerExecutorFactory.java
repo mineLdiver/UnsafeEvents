@@ -4,10 +4,12 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
+import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.util.concurrent.*;
 import java.util.function.*;
 
+import static net.mine_diver.unsafeevents.UnsafeProvider.IMPL_LOOKUP;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
@@ -24,16 +26,20 @@ final class ListenerExecutorFactory {
 
     private static Class<? extends Consumer<? extends Event>> generateExecutor(Method method, Class<? extends Event> eventType) {
         //noinspection unchecked
-        return (Class<? extends Consumer<? extends Event>>)
-                UnsafeProvider.theUnsafe.defineAnonymousClass(
-                        method.getDeclaringClass(),
-                        generateExecutorClass(
-                                method,
-                                method.getDeclaringClass().getName().replace('.', '/') + "$$PericulosusOcto$ListenerExecutor",
-                                eventType
-                        ),
-                        null
-                ).asSubclass(Consumer.class);
+        try {
+            //noinspection unchecked
+            return (Class<? extends Consumer<? extends Event>>)
+                    MethodHandles.privateLookupIn(method.getDeclaringClass(), IMPL_LOOKUP).defineHiddenClass(
+                            generateExecutorClass(
+                                    method,
+                                    method.getDeclaringClass().getName().replace('.', '/') + "$$PericulosusOcto$ListenerExecutor",
+                                    eventType
+                            ),
+                            true, MethodHandles.Lookup.ClassOption.NESTMATE
+                    ).lookupClass().asSubclass(Consumer.class);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static byte[] generateExecutorClass(Method m, String name, Class<? extends Event> eventType) {

@@ -4,10 +4,12 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
+import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.function.*;
 
+import static net.mine_diver.unsafeevents.UnsafeProvider.IMPL_LOOKUP;
 import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
@@ -27,16 +29,19 @@ final class ListenerRegistryFactory {
     }
 
     private Class<? extends Consumer<? extends Event>> generateExecutor(ListenerContainer[] listenerContainers) {
-        //noinspection unchecked
-        return (Class<? extends Consumer<? extends Event>>)
-                UnsafeProvider.theUnsafe.defineAnonymousClass(
-                        eventBus,
-                        generateExecutorClass(
-                                eventBus.getName().replace('.', '/') + "$$ListenerRegistry",
-                                listenerContainers
-                        ),
-                        null
-                ).asSubclass(Consumer.class);
+        try {
+            //noinspection unchecked
+            return (Class<? extends Consumer<? extends Event>>)
+                    MethodHandles.privateLookupIn(eventBus, IMPL_LOOKUP).defineHiddenClass(
+                            generateExecutorClass(
+                                    eventBus.getName().replace('.', '/') + "$$ListenerRegistry",
+                                    listenerContainers
+                            ),
+                            true, MethodHandles.Lookup.ClassOption.NESTMATE
+                    ).lookupClass().asSubclass(Consumer.class);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static byte[] generateExecutorClass(String name, ListenerContainer[] listenerContainers) {
