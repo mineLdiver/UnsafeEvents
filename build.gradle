@@ -62,3 +62,15 @@ task jmh(type: JavaExec, dependsOn: jmhClasses) {
 }
 
 classes.finalizedBy(jmhClasses)
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = group
+            artifactId = rootProject.name
+            version = version
+
+            from components.java
+        }
+    }
+}
