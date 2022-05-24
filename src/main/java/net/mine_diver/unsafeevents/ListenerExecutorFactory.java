@@ -1,38 +1,55 @@
 package net.mine_diver.unsafeevents;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
-import java.lang.invoke.*;
-import java.lang.reflect.*;
-import java.util.concurrent.*;
-import java.util.function.*;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
 
-import static net.mine_diver.unsafeevents.UnsafeProvider.IMPL_LOOKUP;
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.CHECKCAST;
-import static org.objectweb.asm.Opcodes.GETFIELD;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
-import static org.objectweb.asm.Opcodes.POP;
-import static org.objectweb.asm.Opcodes.PUTFIELD;
-import static org.objectweb.asm.Opcodes.RETURN;
-import static org.objectweb.asm.Opcodes.V1_8;
+import static net.mine_diver.unsafeevents.util.UnsafeProvider.IMPL_LOOKUP;
+import static org.objectweb.asm.Opcodes.*;
 
+/**
+ * High performance listener executor factory.
+ *
+ * <p>
+ *     Used for avoiding executing listeners using slow reflection.
+ * </p>
+ *
+ * @author mine_diver
+ */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 final class ListenerExecutorFactory {
 
-    private static Class<? extends Consumer<? extends Event>> generateExecutor(Method method, Class<? extends Event> eventType) {
-        //noinspection unchecked
+    /**
+     * Generates and defines a high performance executor.
+     *
+     * @param method the method to generate the executor for.
+     * @param eventType the event type class that the listener is listening to.
+     * @return the high performance listener executor class.
+     * @param <T> the event type.
+     */
+    private static <T extends Event> @NotNull Class<? extends Consumer<@NotNull T>> generateExecutor(
+            final @NotNull Method method,
+            final @NotNull Class<T> eventType
+    ) {
         try {
             //noinspection unchecked
-            return (Class<? extends Consumer<? extends Event>>)
+            return (Class<? extends Consumer<@NotNull T>>)
                     MethodHandles.privateLookupIn(method.getDeclaringClass(), IMPL_LOOKUP).defineHiddenClass(
                             generateExecutorClass(
                                     method,
-                                    method.getDeclaringClass().getName().replace('.', '/') + "$$PericulosusOcto$ListenerExecutor",
+                                    method.getDeclaringClass().getName().replace('.', '/') + "$$UnsafeEvents$ListenerExecutor",
                                     eventType
                             ),
                             true, MethodHandles.Lookup.ClassOption.NESTMATE
@@ -42,12 +59,24 @@ final class ListenerExecutorFactory {
         }
     }
 
-    private static byte[] generateExecutorClass(Method m, String name, Class<? extends Event> eventType) {
+    /**
+     * Generates the executor class's bytecode.
+     *
+     * @param m the method to generate the executor for.
+     * @param name the executor class name.
+     * @param eventType the event type class that the listener is listening to.
+     * @return the byte array containing the class's bytecode.
+     */
+    private static byte @NotNull [] generateExecutorClass(
+            final @NotNull Method m,
+            final @NotNull String name,
+            final @NotNull Class<? extends Event> eventType
+    ) {
         final boolean staticMethod = Modifier.isStatic(m.getModifiers());
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         writer.visit(V1_8, ACC_PUBLIC, name, null, "java/lang/Object", new String[] {Type.getInternalName(Consumer.class)});
         if (!staticMethod)
-            writer.visitField(ACC_PUBLIC, "instance", "Ljava/lang/Object;", null, null).visitEnd();
+            writer.visitField(ACC_PUBLIC, "_", "Ljava/lang/Object;", null, null).visitEnd();
         // Generate constructor
         MethodVisitor methodGenerator = writer.visitMethod(ACC_PUBLIC, "<init>", staticMethod ? "()V" : "(Ljava/lang/Object;)V", null, null);
         methodGenerator.visitCode();
@@ -56,7 +85,7 @@ final class ListenerExecutorFactory {
         if (!staticMethod) {
             methodGenerator.visitVarInsn(ALOAD, 0);
             methodGenerator.visitVarInsn(ALOAD, 1);
-            methodGenerator.visitFieldInsn(PUTFIELD, name, "instance", "Ljava/lang/Object;");
+            methodGenerator.visitFieldInsn(PUTFIELD, name, "_", "Ljava/lang/Object;");
         }
         methodGenerator.visitInsn(RETURN);
         methodGenerator.visitMaxs(-1, -1);
@@ -66,7 +95,7 @@ final class ListenerExecutorFactory {
         methodGenerator.visitCode();
         if (!staticMethod) {
             methodGenerator.visitVarInsn(ALOAD, 0);
-            methodGenerator.visitFieldInsn(GETFIELD, name, "instance", "Ljava/lang/Object;");
+            methodGenerator.visitFieldInsn(GETFIELD, name, "_", "Ljava/lang/Object;");
             methodGenerator.visitTypeInsn(CHECKCAST, Type.getInternalName(m.getDeclaringClass()));
         }
         methodGenerator.visitVarInsn(ALOAD, 1);
@@ -81,16 +110,30 @@ final class ListenerExecutorFactory {
         return writer.toByteArray();
     }
 
+    /**
+     * The executor cache. Helps to avoid creating too many unnecessary objects.
+     */
+    @NotNull
     private static final ConcurrentMap<Method, Class<? extends Consumer<? extends Event>>> cache = new ConcurrentHashMap<>();
 
-    static <T extends Event> Consumer<T> create(Object target, Method method, Class<T> eventType) {
+    /**
+     * Creates a high performance listener executor.
+     *
+     * @param target the listener's instance. If null, a static executor is generated.
+     * @param method the method to generate the executor for.
+     * @param eventType the event type class that the listener is listening to.
+     * @return the high performance executor.
+     * @param <T> the event type.
+     */
+    static <T extends Event> @NotNull Consumer<@NotNull T> create(
+            final @Nullable Object target,
+            final @NotNull Method method,
+            final @NotNull Class<T> eventType
+    ) {
         //noinspection unchecked
-        Class<? extends Consumer<T>> executorClass = (Class<? extends Consumer<T>>) cache.computeIfAbsent(method, method1 -> generateExecutor(method1, eventType));
+        final @NotNull Class<? extends Consumer<@NotNull T>> executorClass = (Class<? extends Consumer<@NotNull T>>) cache.computeIfAbsent(method, method1 -> generateExecutor(method1, eventType));
         try {
-            if (Modifier.isStatic(method.getModifiers()))
-                return executorClass.newInstance();
-            else
-                return executorClass.getConstructor(Object.class).newInstance(target);
+            return Modifier.isStatic(method.getModifiers()) ? executorClass.getConstructor().newInstance() : executorClass.getConstructor(Object.class).newInstance(target);
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new RuntimeException("Unable to initialize " + executorClass, e);
         }
