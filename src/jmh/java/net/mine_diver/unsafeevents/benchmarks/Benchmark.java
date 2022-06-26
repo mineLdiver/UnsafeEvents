@@ -19,7 +19,7 @@ public class Benchmark {
 
     @org.openjdk.jmh.annotations.Benchmark
     public void benchmark(Blackhole blackhole) {
-        blackhole.consume(eventBus.post(new TestEvent(0)).sum);
+        blackhole.consume(eventBus.post(TestEvent.builder().sum(0).build()).sum);
     }
 
     public EventBus eventBus;

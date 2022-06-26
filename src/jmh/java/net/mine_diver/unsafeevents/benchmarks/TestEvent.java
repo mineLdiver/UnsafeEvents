@@ -1,14 +1,12 @@
 package net.mine_diver.unsafeevents.benchmarks;
 
+import lombok.experimental.SuperBuilder;
 import net.mine_diver.unsafeevents.Event;
 
+@SuperBuilder
 public class TestEvent extends Event {
 
     public int sum;
-
-    public TestEvent(int sum) {
-        this.sum = sum;
-    }
 
     @Override
     protected int getEventID() {

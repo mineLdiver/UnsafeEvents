@@ -5,10 +5,12 @@ import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import net.mine_diver.unsafeevents.util.UnsafeProvider;
 import net.mine_diver.unsafeevents.util.Util;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -41,11 +43,21 @@ import java.util.concurrent.atomic.AtomicInteger;
  *     that are supposed to be immutable, and requires to clear the constant instance
  *     after each dispatch with an {@link Event#finish()} implementation,
  *     but saves GC from having to clear up its instances after each dispatch.
+ *     There's also a way that combines features from both, which is using {@link SuperBuilder}
+ *     from lombok. The advantages are easier to create and nicer looking event classes,
+ *     which is one of the benefits of the first method mentioned,
+ *     and the ability to add fields to the event in future without breaking constructor
+ *     signatures, which is an advantage of the second method,
+ *     but it also provides a disadvantage of having to create
+ *     a new object each time the event is dispatched,
+ *     but most of the time it's even more efficient
+ *     than looking the object up from a cache.
  * </p>
  *
  * @see EventBus
  * @author mine_diver
  */
+@SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class Event {
 
@@ -104,8 +116,17 @@ public abstract class Event {
     /**
      * Whether the event is currently canceled.
      */
-    @Getter
-    private boolean canceled;
+    @NotNull
+    private final AtomicBoolean canceled = new AtomicBoolean();
+
+    /**
+     * Returns whether the event is currently canceled.
+     *
+     * @return whether the event is currently canceled.
+     */
+    public boolean isCanceled() {
+        return canceled.get();
+    }
 
     /**
      * Sets whether the event is canceled.
@@ -114,7 +135,7 @@ public abstract class Event {
      * @throws UnsupportedOperationException if the event type isn't cancelable.
      */
     public void setCanceled(final boolean canceled) {
-        if (isCancelable()) this.canceled = canceled;
+        if (isCancelable()) this.canceled.set(canceled);
         else throw new UnsupportedOperationException(String.format("Trying to cancel a not cancellable event! (%s)", getClass().getName()));
     }
 
