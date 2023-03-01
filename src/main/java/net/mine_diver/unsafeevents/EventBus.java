@@ -139,7 +139,7 @@ public class EventBus {
      * </p>
      *
      * <p>
-     *     Default value is {@link EventBus#DEAD_EVENT}, initial capacity is set to {@link Event#NEXT_ID} + 1.
+     *     Default value is {@link EventBus#DEAD_EVENT}, initial capacity is set to {@link DeadEvent#ID} + 1.
      *     The {@link DeadEvent} registry is set to {@link EventBus#DEAD_EVENT_FALLBACK} by default.
      * </p>
      *
@@ -151,7 +151,7 @@ public class EventBus {
             () -> registriesArray,                                                        // the array getter
             arr -> registriesArray = arr,                                                 // the array setter
             (IntFunction<@NotNull Consumer<@NotNull Event> @NotNull []>) Consumer[]::new, // the array constructor
-            DEAD_EVENT, Event.NEXT_ID.get() + 1
+            DEAD_EVENT, DeadEvent.ID + 1
     ), wrapper -> wrapper.put(DeadEvent.ID, DEAD_EVENT_FALLBACK));
 
     /**

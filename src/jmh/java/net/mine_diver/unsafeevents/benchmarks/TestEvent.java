@@ -13,5 +13,5 @@ public class TestEvent extends Event {
         return ID;
     }
 
-    public static final int ID = NEXT_ID.incrementAndGet();
+    public static final int ID = nextID();
 }

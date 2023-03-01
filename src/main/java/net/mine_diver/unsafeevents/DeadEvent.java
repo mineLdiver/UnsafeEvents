@@ -23,7 +23,7 @@ public final class DeadEvent extends Event {
     /**
      * The event ID.
      */
-    public static final int ID = NEXT_ID.incrementAndGet();
+    public static final int ID = nextID();
 
     /**
      * The event that didn't have listeners.

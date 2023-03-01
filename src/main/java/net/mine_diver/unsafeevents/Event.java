@@ -6,12 +6,12 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import net.mine_diver.unsafeevents.util.UnsafeProvider;
 import net.mine_diver.unsafeevents.util.Util;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.ToIntFunction;
 
 /**
  * The basic abstract event class.
@@ -62,16 +62,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class Event {
 
     /**
-     * The next ID {@link AtomicInteger} field.
+     * Event ID counter.
      *
      * <p>
-     *     Used for obtaining an ID by event types through {@link AtomicInteger#incrementAndGet()}.
+     *     Incremented for each event class.
      * </p>
      *
-     * @see Event#getEventID()
+     * <p>
+     *     Acts as a fast lookup key for event listeners during {@link EventBus#post(Event)}.
+     * </p>
+     *
+     * @see #nextID()
+     * @see #getEventID()
+     * @see #getEventID(Class)
      */
     @NotNull
-    protected static final AtomicInteger NEXT_ID = new AtomicInteger();
+    private static final AtomicInteger NEXT_ID = new AtomicInteger();
 
     /**
      * Global event type to event ID lookup,
@@ -80,6 +86,9 @@ public abstract class Event {
      */
     @NotNull
     private static final Reference2IntMap<Class<? extends Event>> EVENT_ID_LOOKUP = Util.make(new Reference2IntOpenHashMap<>(), map -> map.defaultReturnValue(-1));
+
+    @NotNull
+    private static final ToIntFunction<Class<? extends Event>> ID_GENERATOR = eventClass -> NEXT_ID.incrementAndGet();
 
     /**
      * Returns the event ID of the specified event type from {@link Event#EVENT_ID_LOOKUP}.
@@ -90,21 +99,31 @@ public abstract class Event {
      *     using {@link Event#getEventID()}, and stores it in the lookup.
      * </p>
      *
-     * @param eventType the event type class of which the ID must be returned.
+     * @param eventClass the event class of which the ID must be returned.
      * @return the ID of the specified event type.
      * @param <T> the event type.
      */
     public static <T extends Event> int getEventID(
-            final @NotNull Class<T> eventType
+            final @NotNull Class<T> eventClass
     ) {
-        return EVENT_ID_LOOKUP.computeIfAbsent(eventType, aClass -> {
-            try {
-                //noinspection unchecked
-                return ((T) UnsafeProvider.theUnsafe.allocateInstance(eventType)).getEventID();
-            } catch (InstantiationException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        return EVENT_ID_LOOKUP.computeIfAbsent(eventClass, ID_GENERATOR);
+    }
+
+    /**
+     * Caller sensitive, and thus protected, version of {@link #getEventID(Class)}.
+     *
+     * <p>
+     *     Main purpose of this method is to get the ID of the caller event
+     *     so it can be cached in a final field and then be returned
+     *     in a {@link #getEventID()} override to minimize the event ID lookup overhead.
+     * </p>
+     *
+     * @return generated, or cached ID of the caller event.
+     */
+    protected static int nextID() {
+        Class<?> callerClass = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
+        if (!Event.class.isAssignableFrom(callerClass)) throw new IllegalCallerException();
+        return getEventID(callerClass.asSubclass(Event.class));
     }
 
     /**
@@ -165,14 +184,17 @@ public abstract class Event {
     protected void finish() {}
 
     /**
-     * Returns the constant event ID obtained through {@link Event#NEXT_ID}.
+     * Returns the event's ID.
      *
      * <p>
-     *     Must be constant for each event type,
-     *     otherwise, the behavior is unpredictable.
+     *     This method exists and is inheritable to allow for
+     *     events to cache their IDs using {@link #nextID()}
+     *     in order to prevent map lookup when dispatching.
      * </p>
      *
-     * @return the constant event ID obtained through {@link Event#NEXT_ID}.
+     * @return the event's ID.
      */
-    protected abstract int getEventID();
+    protected int getEventID() {
+        return EVENT_ID_LOOKUP.computeIfAbsent(getClass(), ID_GENERATOR);
+    }
 }
