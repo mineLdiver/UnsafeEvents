@@ -11,6 +11,8 @@ import net.mine_diver.unsafeevents.listener.EventListener;
 import net.mine_diver.unsafeevents.listener.ListenerPriority;
 import net.mine_diver.unsafeevents.util.Util;
 import net.mine_diver.unsafeevents.util.collection.Int2ReferenceArrayMapWrapper;
+import net.mine_diver.unsafeevents.util.exception.DisabledDispatchCause;
+import net.mine_diver.unsafeevents.util.exception.IllegalDispatchException;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -186,12 +188,57 @@ public class EventBus {
     protected boolean invalidated;
 
     /**
+     * Whether dispatch is currently disabled.
+     * False by default
+     */
+    protected boolean dispatchDisabled;
+
+    /**
+     * A throwable containing a stack trace of {@link #disableDispatch()}
+     * as a cause for {@link IllegalDispatchException}, so debugging
+     * an illegal dispatch is easier.
+     */
+    protected DisabledDispatchCause disabledDispatchCause;
+
+    /**
+     * Disables dispatch.
+     *
+     * <p>
+     *     Makes {@link #post(Event)} throw {@link IllegalDispatchException}
+     *     with the cause being this method's stack trace.
+     * </p>
+     *
+     * <p>
+     *     Caller sensitive. Stores current stack trace, including caller class,
+     *     for potential future reference if {@link #post(Event)}
+     *     gets executed while disabled.
+     * </p>
+     *
+     * <p>
+     *     Useful for bulk registering listeners that aren't supposed
+     *     to directly or indirectly dispatch an event during registration.
+     * </p>
+     */
+    public void disableDispatch() {
+        dispatchDisabled = true;
+        disabledDispatchCause = new DisabledDispatchCause("Event dispatch was disabled");
+    }
+
+    /**
+     * Re-enables dispatch and clears disable stack trace.
+     */
+    public void enableDispatch() {
+        dispatchDisabled = false;
+        disabledDispatchCause = null;
+    }
+
+    /**
      * Registers only static methods annotated with {@link EventListener}
      * in the specified class as listeners in this bus.
      *
      * @param listenerClass the class containing static {@link EventListener} methods.
      * @throws IllegalArgumentException if an {@link EventListener} method in the hierarchy
-     *                                  has no or more than 1 parameters, or if the method parameter is not an event
+     *                                  has no or more than 1 parameter, or if the method parameter is not an event
      */
     public void register(
             final @NotNull Class<?> listenerClass
@@ -469,10 +516,12 @@ public class EventBus {
      * @param event the event to dispatch to this bus's listeners.
      * @return the dispatched event.
      * @param <T> the event type.
+     * @throws IllegalDispatchException if dispatch was currently disabled
      */
     @Contract("_ -> param1")
     @CanIgnoreReturnValue
     public @NotNull <T extends Event> T post(final @NotNull T event) {
+        if (dispatchDisabled) throw new IllegalDispatchException("Attempted to dispatch event " + event.getClass().getName() + " when dispatch is disabled!", disabledDispatchCause);
         if (invalidated) compileRegistries(); // compiling high performance registries if the state is invalidated
         final int eventId = event.getEventID();
         if (eventId >= registriesArray.length) registries.resizeArray(eventId + 1); // resizing the array to fit the new event id
