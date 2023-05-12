@@ -1,7 +1,8 @@
-package net.mine_diver.unsafeevents;
+package net.mine_diver.unsafeevents.listener;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import net.mine_diver.unsafeevents.Event;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassWriter;
@@ -30,7 +31,6 @@ import static org.objectweb.asm.Opcodes.*;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 final class ListenerExecutorFactory {
-
     /**
      * Generates and defines a high performance executor.
      *
@@ -123,15 +123,15 @@ final class ListenerExecutorFactory {
      * @param method the method to generate the executor for.
      * @param eventType the event type class that the listener is listening to.
      * @return the high performance executor.
-     * @param <T> the event type.
+     * @param <EVENT> the event type.
      */
-    static <T extends Event> @NotNull Consumer<@NotNull T> create(
+    static <EVENT extends Event> @NotNull Consumer<@NotNull EVENT> create(
             final @Nullable Object target,
             final @NotNull Method method,
-            final @NotNull Class<T> eventType
+            final @NotNull Class<EVENT> eventType
     ) {
         //noinspection unchecked
-        final @NotNull Class<? extends Consumer<@NotNull T>> executorClass = (Class<? extends Consumer<@NotNull T>>) cache.computeIfAbsent(method, method1 -> generateExecutor(method1, eventType));
+        final @NotNull Class<? extends Consumer<@NotNull EVENT>> executorClass = (Class<? extends Consumer<@NotNull EVENT>>) cache.computeIfAbsent(method, method1 -> generateExecutor(method1, eventType));
         try {
             return Modifier.isStatic(method.getModifiers()) ? executorClass.getConstructor().newInstance() : executorClass.getConstructor(Object.class).newInstance(target);
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {

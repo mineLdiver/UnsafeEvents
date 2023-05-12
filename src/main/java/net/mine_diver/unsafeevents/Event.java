@@ -60,7 +60,6 @@ import java.util.function.ToIntFunction;
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class Event {
-
     /**
      * Event ID counter.
      *

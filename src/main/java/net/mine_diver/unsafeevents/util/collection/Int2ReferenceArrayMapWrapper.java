@@ -33,7 +33,6 @@ import java.util.function.Supplier;
  * @author mine_diver
  */
 public final class Int2ReferenceArrayMapWrapper<V> {
-
     /**
      * The default return value of this array.
      *

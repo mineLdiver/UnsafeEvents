@@ -5,7 +5,6 @@ import net.mine_diver.unsafeevents.Event;
 
 @SuperBuilder
 public class TestEvent extends Event {
-
     public int sum;
 
     @Override

@@ -14,7 +14,6 @@ import java.util.function.Consumer;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class Util {
-
     /**
      * Applies an initializer to an object and returns the object.
      *

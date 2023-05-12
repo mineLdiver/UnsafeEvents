@@ -2,8 +2,7 @@ package net.mine_diver.unsafeevents.benchmarks;
 
 import net.mine_diver.unsafeevents.listener.EventListener;
 
-public class Listener {
-
+public class TestListener {
     @EventListener
     public static void listener1(TestEvent event) {
         event.sum += 1;

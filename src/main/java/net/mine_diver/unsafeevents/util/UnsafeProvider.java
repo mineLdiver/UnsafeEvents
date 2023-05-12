@@ -12,7 +12,6 @@ import java.lang.reflect.Field;
  * @author mine_diver
  */
 public class UnsafeProvider {
-
     /**
      * The unsafe instance obtained using reflection.
      */

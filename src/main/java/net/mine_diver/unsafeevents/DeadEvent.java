@@ -14,7 +14,6 @@ import java.util.Objects;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class DeadEvent extends Event {
-
     /**
      * The constant instance of the event.
      */

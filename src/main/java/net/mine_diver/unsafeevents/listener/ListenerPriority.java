@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
  */
 @RequiredArgsConstructor
 public enum ListenerPriority {
-
     /**
      * Listeners with this priority execute first.
      */

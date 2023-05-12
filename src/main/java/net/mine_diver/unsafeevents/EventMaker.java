@@ -11,7 +11,6 @@ import org.jetbrains.annotations.NotNull;
  */
 @FunctionalInterface
 public interface EventMaker<T extends Event> {
-
     /**
      * Returns the decorated event instance.
      *

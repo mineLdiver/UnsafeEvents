@@ -1,6 +1,7 @@
 package net.mine_diver.unsafeevents.util.exception;
 
 import net.mine_diver.unsafeevents.EventBus;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Created and stored when event dispatch gets disabled for an {@link EventBus}.
@@ -16,7 +17,7 @@ import net.mine_diver.unsafeevents.EventBus;
  * @author mine_diver
  */
 public class DisabledDispatchCause extends Throwable {
-    public DisabledDispatchCause(String message) {
+    public DisabledDispatchCause(final @NotNull String message) {
         super(message);
     }
 }

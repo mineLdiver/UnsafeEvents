@@ -1,6 +1,7 @@
 package net.mine_diver.unsafeevents.util.exception;
 
 import net.mine_diver.unsafeevents.EventBus;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Signals that an event dispatch has been invoked at an illegal or inappropriate time.
@@ -14,7 +15,7 @@ import net.mine_diver.unsafeevents.EventBus;
  * @author mine_diver
  */
 public class IllegalDispatchException extends IllegalStateException {
-    public IllegalDispatchException(String message, Throwable cause) {
+    public IllegalDispatchException(final @NotNull String message, final @NotNull Throwable cause) {
         super(message, cause);
     }
 }

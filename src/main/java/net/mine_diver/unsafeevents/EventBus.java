@@ -6,9 +6,9 @@ import it.unimi.dsi.fastutil.ints.Int2ReferenceMap;
 import it.unimi.dsi.fastutil.ints.Int2ReferenceOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
-import net.jodah.typetools.TypeResolver;
 import net.mine_diver.unsafeevents.listener.EventListener;
-import net.mine_diver.unsafeevents.listener.ListenerPriority;
+import net.mine_diver.unsafeevents.listener.GenericListener;
+import net.mine_diver.unsafeevents.listener.SingularListener;
 import net.mine_diver.unsafeevents.util.Util;
 import net.mine_diver.unsafeevents.util.collection.Int2ReferenceArrayMapWrapper;
 import net.mine_diver.unsafeevents.util.exception.DisabledDispatchCause;
@@ -18,9 +18,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
@@ -51,7 +50,6 @@ import java.util.function.IntFunction;
  * @author mine_diver
  */
 public class EventBus {
-
     /**
      * {@link DeadEvent} fallback.
      *
@@ -198,7 +196,7 @@ public class EventBus {
      * as a cause for {@link IllegalDispatchException}, so debugging
      * an illegal dispatch is easier.
      */
-    protected DisabledDispatchCause disabledDispatchCause;
+    protected @Nullable DisabledDispatchCause disabledDispatchCause;
 
     /**
      * Disables dispatch.
@@ -233,228 +231,24 @@ public class EventBus {
     }
 
     /**
-     * Registers only static methods annotated with {@link EventListener}
-     * in the specified class as listeners in this bus.
+     * Registers a generic listener.
      *
-     * @param listenerClass the class containing static {@link EventListener} methods.
-     * @throws IllegalArgumentException if an {@link EventListener} method in the hierarchy
-     *                                  has no or more than 1 parameter, or if the method parameter is not an event
+     * @param genericListener the listener to register.
      */
-    public void register(
-            final @NotNull Class<?> listenerClass
-    ) {
-        register(listenerClass, null);
+    public void register(final @NotNull GenericListener genericListener) {
+        genericListener.accept(this::register);
     }
 
     /**
-     * Registers only non-static methods annotated with {@link EventListener}
-     * in the class of the specified object.
+     * Registers a singular listener.
      *
-     * <p>
-     *     The listeners are only registered under this object's instance.
-     * </p>
-     *
-     * @param listener the object which class contains non-static {@link EventListener} methods.
-     * @throws IllegalArgumentException if an {@link EventListener} method in the hierarchy
-     *                                  has no or more than 1 parameters, or if the method parameter is not an event
+     * @param listener the listener to register
+     * @param <EVENT> the event type the listener accepts.
      */
-    public void register(
-            final @NotNull Object listener
-    ) {
-        register(listener.getClass() /* getting all the methods of the hierarchy */, listener);
-    }
-
-    /**
-     * Registers this object's methods from a class somewhere in the hierarchy of this object.
-     *
-     * <p>
-     *     Allows to limit the bus to only registering methods starting from a specific point in the hierarchy of this object.
-     *     For example, class B extends class A. If {@code register(A.class, new B())} is run,
-     *     only the {@link EventListener} methods of class A are going to be registered, but associated to an instance of B.
-     *     If {@code register(B.class, new B())} is run, both class A and class B {@link EventListener} methods are going to
-     *     be registered.
-     * </p>
-     *
-     * <p>
-     *     If listener instance is null, only static {@link EventListener} methods are going to be registered,
-     *     otherwise static methods are ignored and only non-static methods are registered.
-     * </p>
-     *
-     * @param listenerClass the listener class starting from which in the hierarchy the {@link EventListener} methods are registered.
-     * @param listener the listener object. If null, static {@link EventListener} methods are registered instead.
-     * @param <T> the instance type.
-     * @param <U> a child type of instance, allows to specify higher hierarchy types, including {@link T}, for listener class type.
-     * @throws IllegalArgumentException if an {@link EventListener} method in the hierarchy
-     *                                  has no or more than 1 parameters, or if the method parameter is not an event
-     */
-    public <T, U extends T> void register(
-            final @NotNull Class<? super U> listenerClass,
-            final @Nullable T listener
-    ) {
-        for (final @NotNull Method method : listenerClass.getDeclaredMethods())
-            if (method.isAnnotationPresent(EventListener.class) && ((listener == null) == Modifier.isStatic(method.getModifiers()))) {
-                final @NotNull EventListener eventListener = method.getAnnotation(EventListener.class);
-                final @NotNull ListenerPriority listenerPriority = eventListener.priority();
-                register(method, listener, listenerPriority.custom ? eventListener.numPriority() : listenerPriority.numPriority);
-            }
-    }
-
-    /**
-     * Registers a static {@link EventListener} {@link Method} with {@link EventListener#DEFAULT_PRIORITY} priority.
-     *
-     * @param method the static {@link EventListener} method to register as a listener.
-     * @throws IllegalArgumentException if the method has no or more than 1 parameters,
-     *                                  or if the method parameter is not an event
-     */
-    public void register(
-            final @NotNull Method method
-    ) {
-        register(method, null);
-    }
-
-    /**
-     * Registers a static {@link EventListener} {@link Method} with a custom priority.
-     *
-     * @param method the static {@link EventListener} method to register as a listener.
-     * @param priority the priority to assign to this listener.
-     * @throws IllegalArgumentException if the method has no or more than 1 parameters,
-     *                                  or if the method parameter is not an event
-     * @see ListenerPriority
-     */
-    public void register(
-            final @NotNull Method method,
-            final int priority
-    ) {
-        register(method, null, priority);
-    }
-
-    /**
-     * Registers an {@link EventListener} {@link Method} with {@link EventListener#DEFAULT_PRIORITY} priority.
-     *
-     * <p>
-     *     If listener instance is null, the {@link EventListener} method is registered as static.
-     * </p>
-     *
-     * @param method the {@link EventListener} method to register as a listener.
-     * @param listener the listener object. If null, the method is registered as static.
-     * @throws IllegalArgumentException if the method has no or more than 1 parameters,
-     *                                  or if the method parameter is not an event
-     */
-    public void register(
-            final @NotNull Method method,
-            final @Nullable Object listener
-    ) {
-        register(method, listener, EventListener.DEFAULT_PRIORITY);
-    }
-
-    /**
-     * Registers an {@link EventListener} {@link Method} with a custom priority.
-     *
-     * <p>
-     *     If listener instance is null, the {@link EventListener} method is registered as static.
-     * </p>
-     *
-     * @param method the {@link EventListener} method to register as a listener.
-     * @param listener the listener object. If null, the method is registered as static.
-     * @param priority the priority to assign to this listener.
-     * @param <T> the event type.
-     * @throws IllegalArgumentException if the method has no or more than 1 parameters,
-     *                                  or if the method parameter is not an event
-     */
-    public <T extends Event> void register(
-            final @NotNull Method method,
-            final @Nullable Object listener,
-            final int priority
-    ) {
-        if (method.getParameterCount() == 1) {
-            final @NotNull Class<?> rawEventType = method.getParameterTypes()[0]; // getting the method parameter type
-            if (Event.class.isAssignableFrom(rawEventType)) {
-                //noinspection unchecked
-                final @NotNull Class<T> eventType = (Class<T>) rawEventType; // casting the method parameter type to the event type
-                register(
-                        eventType,
-                        ListenerExecutorFactory.create(listener, method, eventType), // creating a high performance executor for this method
-                        priority
-                );
-            } else throw new IllegalArgumentException(String.format(
-                    "Method %s#%s's parameter type (%s) is not an event!",
-                    method.getDeclaringClass().getName(), method.getName(), rawEventType.getName()
-            ));
-        } else throw new IllegalArgumentException(String.format(
-                "Method %s#%s has a wrong amount of parameters!",
-                method.getDeclaringClass().getName(), method.getName()
-        ));
-    }
-
-    /**
-     * Registers an {@link Event} {@link Consumer} as a listener with {@link EventListener#DEFAULT_PRIORITY} priority.
-     *
-     * <p>
-     *     This method automatically resolves the event type from the consumer's parameters.
-     * </p>
-     *
-     * @param listener the consumer to register as a listener.
-     * @param <T> the event type.
-     */
-    public <T extends Event> void register(
-            final @NotNull Consumer<@NotNull T> listener
-    ) {
-        register(listener, EventListener.DEFAULT_PRIORITY);
-    }
-
-    /**
-     * Registers an {@link Event} {@link Consumer} as a listener with a custom priority.
-     *
-     * <p>
-     *     This method automatically resolves the event type from the consumer's parameters.
-     * </p>
-     *
-     * @param listener the consumer to register as a listener.
-     * @param priority the priority to assign to this listener.
-     * @param <T> the event type.
-     */
-    public <T extends Event> void register(
-            final @NotNull Consumer<@NotNull T> listener,
-            final int priority
-    ) {
+    public <EVENT extends Event> void register(final @NotNull SingularListener<@NotNull EVENT> listener) {
+        final int globalId = Event.getEventID(listener.eventType());
         //noinspection unchecked
-        register(
-                (Class<T>) TypeResolver.resolveRawArgument(Consumer.class, listener.getClass()), // resolving the event type from consumer's parameters
-                listener,
-                priority
-        );
-    }
-
-    /**
-     * Registers an {@link Event} {@link Consumer} as a listener with {@link EventListener#DEFAULT_PRIORITY} priority.
-     *
-     * @param eventType the event type class. Skips the automatic resolving.
-     * @param listener the consumer to register as a listener.
-     * @param <T> the event type.
-     */
-    public <T extends Event> void register(
-            final @NotNull Class<T> eventType,
-            final @NotNull Consumer<@NotNull T> listener
-    ) {
-        register(eventType, listener, EventListener.DEFAULT_PRIORITY);
-    }
-
-    /**
-     * Registers an {@link Event} {@link Consumer} as a listener with a custom priority.
-     *
-     * @param eventType the event type class. Skips the automatic resolving.
-     * @param listener the consumer to register as a listener.
-     * @param priority the priority to assign to this listener.
-     * @param <T> the event type.
-     */
-    public <T extends Event> void register(
-            final @NotNull Class<T> eventType,
-            final @NotNull Consumer<@NotNull T> listener,
-            final int priority
-    ) {
-        final int globalId = Event.getEventID(eventType);
-        //noinspection unchecked
-        final @NotNull ListenerContainer listenerContainer = new ListenerContainer((Consumer<Event>) listener, priority);
+        final @NotNull ListenerContainer listenerContainer = new ListenerContainer((Consumer<Event>) listener.listener(), listener.priority());
         // putting the listener into raw listeners array and sorting by priority
         Arrays.sort(listeners.compute(
                 globalId,
@@ -521,7 +315,7 @@ public class EventBus {
     @Contract("_ -> param1")
     @CanIgnoreReturnValue
     public @NotNull <T extends Event> T post(final @NotNull T event) {
-        if (dispatchDisabled) throw new IllegalDispatchException("Attempted to dispatch event " + event.getClass().getName() + " when dispatch is disabled!", disabledDispatchCause);
+        if (dispatchDisabled) throw new IllegalDispatchException("Attempted to dispatch event " + event.getClass().getName() + " when dispatch is disabled!", Objects.requireNonNull(disabledDispatchCause, "Dispatch disable cause can't be null!"));
         if (invalidated) compileRegistries(); // compiling high performance registries if the state is invalidated
         final int eventId = event.getEventID();
         if (eventId >= registriesArray.length) registries.resizeArray(eventId + 1); // resizing the array to fit the new event id

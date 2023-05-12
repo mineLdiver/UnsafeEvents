@@ -1,6 +1,7 @@
 package net.mine_diver.unsafeevents.benchmarks;
 
 import net.mine_diver.unsafeevents.EventBus;
+import net.mine_diver.unsafeevents.listener.Listener;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -10,11 +11,10 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(1)
 @State (Scope.Benchmark)
 public class Benchmark {
-
     @Setup
     public void setup() {
         eventBus = new EventBus();
-        eventBus.register(Listener.class);
+        eventBus.register(Listener.staticMethods().listenerClass(TestListener.class).build());
     }
 
     @org.openjdk.jmh.annotations.Benchmark

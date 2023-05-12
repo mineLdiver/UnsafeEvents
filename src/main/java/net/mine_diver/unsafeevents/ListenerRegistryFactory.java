@@ -22,7 +22,6 @@ import static org.objectweb.asm.Opcodes.*;
  * @author mine_diver
  */
 final class ListenerRegistryFactory {
-
     /**
      * The high performance registry class name.
      */
