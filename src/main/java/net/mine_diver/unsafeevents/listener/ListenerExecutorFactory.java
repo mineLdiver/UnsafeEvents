@@ -1,11 +1,11 @@
 package net.mine_diver.unsafeevents.listener;
 
 import lombok.experimental.UtilityClass;
+import lombok.val;
 import net.mine_diver.unsafeevents.Event;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 import java.lang.invoke.MethodHandles;
@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
-import static net.mine_diver.unsafeevents.util.UnsafeProvider.IMPL_LOOKUP;
+import static net.mine_diver.unsafeevents.util.UnsafeProvider.*;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -36,15 +36,15 @@ final class ListenerExecutorFactory {
      * @param method the method to generate the executor for.
      * @param eventType the event type class that the listener is listening to.
      * @return the high performance listener executor class.
-     * @param <T> the event type.
+     * @param <EVENT> the event type.
      */
-    private <T extends Event> @NotNull Class<? extends Consumer<@NotNull T>> generateExecutor(
+    private <EVENT extends Event> @NotNull Class<? extends Consumer<@NotNull EVENT>> generateExecutor(
             final @NotNull Method method,
-            final @NotNull Class<T> eventType
+            final @NotNull Class<EVENT> eventType
     ) {
         try {
             //noinspection unchecked
-            return (Class<? extends Consumer<@NotNull T>>)
+            return (Class<? extends Consumer<@NotNull EVENT>>)
                     MethodHandles.privateLookupIn(method.getDeclaringClass(), IMPL_LOOKUP).defineHiddenClass(
                             generateExecutorClass(
                                     method,
@@ -71,13 +71,13 @@ final class ListenerExecutorFactory {
             final @NotNull String name,
             final @NotNull Class<? extends Event> eventType
     ) {
-        final boolean staticMethod = Modifier.isStatic(m.getModifiers());
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        val staticMethod = Modifier.isStatic(m.getModifiers());
+        val writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         writer.visit(V1_8, ACC_PUBLIC, name, null, "java/lang/Object", new String[] {Type.getInternalName(Consumer.class)});
         if (!staticMethod)
             writer.visitField(ACC_PUBLIC, "_", "Ljava/lang/Object;", null, null).visitEnd();
         // Generate constructor
-        MethodVisitor methodGenerator = writer.visitMethod(ACC_PUBLIC, "<init>", staticMethod ? "()V" : "(Ljava/lang/Object;)V", null, null);
+        var methodGenerator = writer.visitMethod(ACC_PUBLIC, "<init>", staticMethod ? "()V" : "(Ljava/lang/Object;)V", null, null);
         methodGenerator.visitCode();
         methodGenerator.visitVarInsn(ALOAD, 0);
         methodGenerator.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false); // Invoke the super class (Object) constructor
@@ -112,8 +112,7 @@ final class ListenerExecutorFactory {
     /**
      * The executor cache. Helps to avoid creating too many unnecessary objects.
      */
-    @NotNull
-    private final ConcurrentMap<Method, Class<? extends Consumer<? extends Event>>> cache = new ConcurrentHashMap<>();
+    private final @NotNull ConcurrentMap<@NotNull Method, @NotNull Class<? extends Consumer<? extends @NotNull Event>>> cache = new ConcurrentHashMap<>();
 
     /**
      * Creates a high performance listener executor.
@@ -133,7 +132,7 @@ final class ListenerExecutorFactory {
         final @NotNull Class<? extends Consumer<@NotNull EVENT>> executorClass = (Class<? extends Consumer<@NotNull EVENT>>) cache.computeIfAbsent(method, method1 -> generateExecutor(method1, eventType));
         try {
             return Modifier.isStatic(method.getModifiers()) ? executorClass.getConstructor().newInstance() : executorClass.getConstructor(Object.class).newInstance(target);
-        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+        } catch (final InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new RuntimeException("Unable to initialize " + executorClass, e);
         }
     }

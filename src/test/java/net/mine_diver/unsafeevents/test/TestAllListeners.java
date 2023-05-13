@@ -1,12 +1,18 @@
 package net.mine_diver.unsafeevents.test;
 
+import lombok.val;
 import net.mine_diver.unsafeevents.EventBus;
+import net.mine_diver.unsafeevents.EventBusController;
+import net.mine_diver.unsafeevents.ManagedEventBus;
 import net.mine_diver.unsafeevents.listener.Listener;
 
 public class TestAllListeners {
     public static void main(String[] args) {
-        EventBus eventBus = new EventBus();
-        eventBus.disableDispatch();
+        val instance = ManagedEventBus.create();
+        EventBus eventBus = instance.eventBus();
+        EventBusController eventBusController = instance.eventBusController();
+
+        eventBusController.disableDispatch("Listeners mustn't be able to cause an event dispatch during registration.");
         eventBus.register(
                 Listener.staticMethods()
                         .listener(TestStaticMethods.class)
@@ -22,7 +28,8 @@ public class TestAllListeners {
                         .listener(TestMethodReference::listenForTest)
                         .build()
         );
-        eventBus.enableDispatch();
+        eventBusController.enableDispatch();
+
         eventBus.post(TestEvent.builder().stream(System.out).build());
     }
 }

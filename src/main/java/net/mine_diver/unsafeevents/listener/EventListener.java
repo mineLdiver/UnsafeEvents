@@ -1,7 +1,5 @@
 package net.mine_diver.unsafeevents.listener;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.lang.annotation.*;
 
 /**
@@ -38,7 +36,7 @@ public @interface EventListener {
      *
      * @return the enum priority of the listener.
      */
-    @NotNull ListenerPriority priority() default ListenerPriority.CUSTOM;
+    ListenerPriority priority() default ListenerPriority.CUSTOM;
 
     /**
      * Returns the numerical priority of the listener.

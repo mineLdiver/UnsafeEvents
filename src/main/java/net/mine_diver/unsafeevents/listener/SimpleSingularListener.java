@@ -14,8 +14,8 @@ import java.util.function.Consumer;
  *                 High priority - early execution. 0 is default.
  * @param <EVENT> the event type the backing consumer accepts.
  */
-public record SimpleListener<EVENT extends Event>(
-        @NotNull Class<@NotNull EVENT> eventType,
+public record SimpleSingularListener<EVENT extends Event>(
+        @NotNull Class<EVENT> eventType,
         @NotNull Consumer<@NotNull EVENT> listener,
         int priority
-) implements SingularListener<@NotNull EVENT> {}
+) implements SingularListener<EVENT> {}

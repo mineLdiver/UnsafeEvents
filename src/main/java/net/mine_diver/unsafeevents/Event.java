@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import lombok.val;
 import net.mine_diver.unsafeevents.util.Util;
 import org.jetbrains.annotations.NotNull;
 
@@ -75,19 +76,16 @@ public abstract class Event {
      * @see #getEventID()
      * @see #getEventID(Class)
      */
-    @NotNull
-    private static final AtomicInteger NEXT_ID = new AtomicInteger();
+    private static final @NotNull AtomicInteger NEXT_ID = new AtomicInteger();
 
     /**
      * Global event type to event ID lookup,
      *
      * @see Event#getEventID(Class)
      */
-    @NotNull
-    private static final Reference2IntMap<Class<? extends Event>> EVENT_ID_LOOKUP = Util.make(new Reference2IntOpenHashMap<>(), map -> map.defaultReturnValue(-1));
+    private static final @NotNull Reference2IntMap<@NotNull Class<? extends Event>> EVENT_ID_LOOKUP = Util.make(new Reference2IntOpenHashMap<>(), map -> map.defaultReturnValue(-1));
 
-    @NotNull
-    private static final ToIntFunction<Class<? extends Event>> ID_GENERATOR = eventClass -> NEXT_ID.incrementAndGet();
+    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventClass -> NEXT_ID.incrementAndGet();
 
     /**
      * Returns the event ID of the specified event type from {@link Event#EVENT_ID_LOOKUP}.
@@ -100,10 +98,10 @@ public abstract class Event {
      *
      * @param eventClass the event class of which the ID must be returned.
      * @return the ID of the specified event type.
-     * @param <T> the event type.
+     * @param <EVENT> the event type.
      */
-    public static <T extends Event> int getEventID(
-            final @NotNull Class<T> eventClass
+    public static <EVENT extends Event> int getEventID(
+            final @NotNull Class<EVENT> eventClass
     ) {
         return EVENT_ID_LOOKUP.computeIfAbsent(eventClass, ID_GENERATOR);
     }
@@ -120,7 +118,7 @@ public abstract class Event {
      * @return generated, or cached ID of the caller event.
      */
     protected static int nextID() {
-        Class<?> callerClass = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
+        val callerClass = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
         if (!Event.class.isAssignableFrom(callerClass)) throw new IllegalCallerException();
         return getEventID(callerClass.asSubclass(Event.class));
     }
@@ -134,8 +132,7 @@ public abstract class Event {
     /**
      * Whether the event is currently canceled.
      */
-    @NotNull
-    private final AtomicBoolean canceled = new AtomicBoolean();
+    private final @NotNull AtomicBoolean canceled = new AtomicBoolean();
 
     /**
      * Returns whether the event is currently canceled.

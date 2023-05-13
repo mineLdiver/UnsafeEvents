@@ -17,7 +17,7 @@ public final class DeadEvent extends Event {
     /**
      * The constant instance of the event.
      */
-    static final DeadEvent INSTANCE = new DeadEvent();
+    static final @NotNull DeadEvent INSTANCE = new DeadEvent();
 
     /**
      * The event ID.

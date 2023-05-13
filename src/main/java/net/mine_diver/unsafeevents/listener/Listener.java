@@ -3,6 +3,7 @@ package net.mine_diver.unsafeevents.listener;
 import com.google.common.collect.ImmutableList;
 import lombok.Builder;
 import lombok.experimental.UtilityClass;
+import lombok.val;
 import net.jodah.typetools.TypeResolver;
 import net.mine_diver.unsafeevents.Event;
 import net.mine_diver.unsafeevents.EventBus;
@@ -82,12 +83,12 @@ public class Listener {
             final @NotNull Class<?> listener,
             final int priority
     ) {
-        final @NotNull ImmutableList.Builder<SingularListener<?>> listeners = ImmutableList.builder();
-        for (final @NotNull Method method : listener.getDeclaredMethods()) {
+        val listeners = ImmutableList.<SingularListener<?>>builder();
+        for (val method : listener.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(EventListener.class) || !Modifier.isStatic(method.getModifiers()))
                 continue;
-            final @NotNull EventListener eventListener = method.getAnnotation(EventListener.class);
-            final @NotNull ListenerPriority listenerPriority = eventListener.priority();
+            val eventListener = method.getAnnotation(EventListener.class);
+            val listenerPriority = eventListener.priority();
             listeners.add(
                     Listener.reflection()
                             .method(method)
@@ -112,14 +113,14 @@ public class Listener {
             final @NotNull T listener,
             int priority
     ) {
-        final @NotNull ImmutableList.Builder<SingularListener<?>> listeners = ImmutableList.builder();
-        @Nullable Class<?> curClass = listener.getClass();
+        val listeners = ImmutableList.<SingularListener<?>>builder();
+        @Nullable var curClass = listener.getClass();
         while (curClass != null) {
-            for (final @NotNull Method method : curClass.getDeclaredMethods()) {
+            for (val method : curClass.getDeclaredMethods()) {
                 if (!method.isAnnotationPresent(EventListener.class) || Modifier.isStatic(method.getModifiers()))
                     continue;
-                final @NotNull EventListener eventListener = method.getAnnotation(EventListener.class);
-                final @NotNull ListenerPriority listenerPriority = eventListener.priority();
+                val eventListener = method.getAnnotation(EventListener.class);
+                val listenerPriority = eventListener.priority();
                 listeners.add(
                         Listener.reflection()
                                 .listener(listener)
@@ -143,7 +144,7 @@ public class Listener {
             builderMethodName = "reflection",
             builderClassName = "ReflectionListenerBuilder"
     )
-    private <EVENT extends Event> @NotNull SingularListener<EVENT> createReflection(
+    private <EVENT extends Event> @NotNull SingularListener<@NotNull EVENT> createReflection(
             @Nullable Class<EVENT> eventType,
             final @Nullable Object listener,
             final @NotNull Method method,
@@ -153,7 +154,7 @@ public class Listener {
                 "Method %s#%s has a wrong amount of parameters!",
                 method.getDeclaringClass().getName(), method.getName()
         ));
-        final @NotNull Class<?> rawEventType = method.getParameterTypes()[0]; // getting the method parameter type
+        val rawEventType = method.getParameterTypes()[0]; // getting the method parameter type
         if (eventType == null) {
             if (!Event.class.isAssignableFrom(rawEventType))
                 throw new InvalidMethodParameterTypeException(String.format(
@@ -166,7 +167,7 @@ public class Listener {
                 "Method %s#%s's parameter type (%s) is not assignable from the passed event type (%s)!",
                 method.getDeclaringClass().getName(), method.getName(), rawEventType.getName(), eventType.getName()
         ));
-        return new SimpleListener<>(
+        return new SimpleSingularListener<>(
                 eventType,
                 ListenerExecutorFactory.create(listener, method, eventType), // creating a high performance executor for this method
                 priority
@@ -177,13 +178,13 @@ public class Listener {
             builderMethodName = "simple",
             builderClassName = "SimpleListenerBuilder"
     )
-    private <EVENT extends Event> @NotNull SingularListener<EVENT> createSimple(
+    private <EVENT extends Event> @NotNull SingularListener<@NotNull EVENT> createSimple(
             @Nullable Class<EVENT> eventType,
-            final @NotNull Consumer<EVENT> listener,
+            final @NotNull Consumer<@NotNull EVENT> listener,
             final int priority
     ) {
         // resolving the event type from consumer's parameters
-        final @NotNull Class<?> rawEventType = TypeResolver.resolveRawArgument(Consumer.class, listener.getClass()).asSubclass(Event.class);
+        val rawEventType = TypeResolver.resolveRawArgument(Consumer.class, listener.getClass()).asSubclass(Event.class);
         if (eventType == null) {
             if (!Event.class.isAssignableFrom(rawEventType))
                 throw new InvalidMethodParameterTypeException(String.format(
@@ -196,7 +197,7 @@ public class Listener {
                 "Consumer %s's parameter type (%s) is not assignable from the passed event type (%s)!",
                 listener.getClass().getName(), rawEventType.getName(), eventType.getName()
         ));
-        return new SimpleListener<>(
+        return new SimpleSingularListener<>(
                 eventType,
                 listener,
                 priority

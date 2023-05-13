@@ -1,7 +1,9 @@
 package net.mine_diver.unsafeevents.util.collection;
 
+import lombok.AccessLevel;
+import lombok.experimental.FieldDefaults;
+import lombok.val;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.function.Consumer;
@@ -32,6 +34,10 @@ import java.util.function.Supplier;
  * @param <V> the value type.
  * @author mine_diver
  */
+@FieldDefaults(
+        level = AccessLevel.PRIVATE,
+        makeFinal = true
+)
 public final class Int2ReferenceArrayMapWrapper<V> {
     /**
      * The default return value of this array.
@@ -41,26 +47,22 @@ public final class Int2ReferenceArrayMapWrapper<V> {
      *     are filled with this value.
      * </p>
      */
-    @Nullable
-    private final V drv;
+    @NotNull V drv;
 
     /**
      * The backing array getter.
      */
-    @NotNull
-    private final Supplier<@Nullable V @NotNull []> arrGetter;
+    @NotNull Supplier<@NotNull V @NotNull []> arrGetter;
 
     /**
      * The backing array setter.
      */
-    @NotNull
-    private final Consumer<@Nullable V @NotNull []> arrSetter;
+    @NotNull Consumer<@NotNull V @NotNull []> arrSetter;
 
     /**
      * The constructor of array with the specified type.
      */
-    @NotNull
-    private final IntFunction<@Nullable V @NotNull []> arrInst;
+    @NotNull IntFunction<V @NotNull []> arrInst;
 
     /**
      * The default array wrapper constructor.
@@ -72,10 +74,10 @@ public final class Int2ReferenceArrayMapWrapper<V> {
      * @param initialCapacity the initial size of the backing array.
      */
     public Int2ReferenceArrayMapWrapper(
-            final @NotNull Supplier<@Nullable V @NotNull []> arrGetter,
-            final @NotNull Consumer<@Nullable V @NotNull []> arrSetter,
-            final @NotNull IntFunction<@Nullable V @NotNull []> arrInst,
-            final @Nullable V defaultReturnValue,
+            final @NotNull Supplier<@NotNull V @NotNull []> arrGetter,
+            final @NotNull Consumer<@NotNull V @NotNull []> arrSetter,
+            final @NotNull IntFunction<V @NotNull []> arrInst,
+            final @NotNull V defaultReturnValue,
             final int initialCapacity
     ) {
         this.arrGetter = arrGetter;
@@ -124,7 +126,7 @@ public final class Int2ReferenceArrayMapWrapper<V> {
     public void resizeArray(
             final int newLength
     ) {
-        final @Nullable V @NotNull [] newArr = newArray(newLength);
+        val newArr = newArray(newLength);
         System.arraycopy(arrGetter.get(), 0, newArr, 0, arrGetter.get().length);
         arrSetter.accept(newArr);
         if (arrGetter.get() != newArr) throw new IllegalStateException(
@@ -138,8 +140,8 @@ public final class Int2ReferenceArrayMapWrapper<V> {
      * @param length the length of the new array.
      * @return the new array of the specified length filled with the default return value.
      */
-    private @Nullable V @NotNull [] newArray(final int length) {
-        final @Nullable V @NotNull [] arr = arrInst.apply(length);
+    private @NotNull V @NotNull [] newArray(final int length) {
+        val arr = arrInst.apply(length);
         if (arr.length != length) throw new IllegalStateException(String.format(
                 "Array instantiation function returned an array of incorrect size! (Expected: %d, got: %d)",
                 length, arr.length

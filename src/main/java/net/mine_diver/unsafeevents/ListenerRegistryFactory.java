@@ -1,5 +1,6 @@
 package net.mine_diver.unsafeevents;
 
+import lombok.val;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
@@ -25,8 +26,7 @@ final class ListenerRegistryFactory {
     /**
      * The high performance registry class name.
      */
-    @NotNull
-    private final String className;
+    private final @NotNull String className;
 
     /**
      * The private lookup of the {@link EventBus} owning this factory.
@@ -35,8 +35,7 @@ final class ListenerRegistryFactory {
      *     Used for defining dynamic hidden classes as event bus's nested classes.
      * </p>
      */
-    @NotNull
-    private final MethodHandles.Lookup eventBusLookup;
+    private final @NotNull MethodHandles.Lookup eventBusLookup;
 
     ListenerRegistryFactory(final @NotNull EventBus eventBus, final @NotNull MethodHandles.Lookup eventBusLookup) {
         this.className = eventBus.getClass().getName().replace('.', '/') + "$$ListenerRegistry";
@@ -49,15 +48,15 @@ final class ListenerRegistryFactory {
      * @param registrySize the registry size.
      * @return the high performance listener registry class.
      */
-    private <T extends Event> @NotNull Class<? extends Consumer<@NotNull T>> generateExecutor(final int registrySize) {
+    private <EVENT extends Event> @NotNull Class<? extends Consumer<@NotNull EVENT>> generateExecutor(final int registrySize) {
         try {
             //noinspection unchecked
-            return (Class<? extends Consumer<@NotNull T>>)
+            return (Class<? extends Consumer<@NotNull EVENT>>)
                     eventBusLookup.defineHiddenClass(
                             generateExecutorClass(className, registrySize),
                             true, MethodHandles.Lookup.ClassOption.NESTMATE
                     ).lookupClass().asSubclass(Consumer.class);
-        } catch (IllegalAccessException e) {
+        } catch (final IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
@@ -70,13 +69,13 @@ final class ListenerRegistryFactory {
      * @return the byte array containing the class's bytecode.
      */
     private static byte @NotNull [] generateExecutorClass(final @NotNull String name, final int registrySize) {
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        val writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         writer.visit(V1_8, ACC_PUBLIC, name, null, "java/lang/Object", new String[] { Type.getInternalName(Consumer.class) });
         // Generate fields
         for (int i = 0; i < registrySize; i++)
             writer.visitField(ACC_PRIVATE, String.valueOf(i), Type.getType(Consumer.class).getDescriptor(), null, null).visitEnd();
         // Generate constructor
-        StringBuilder corDesc = new StringBuilder();
+        val corDesc = new StringBuilder();
         for (int i = 0; i < registrySize; i++)
             corDesc.append(Type.getType(Consumer.class).getDescriptor());
         MethodVisitor methodGenerator = writer.visitMethod(ACC_PUBLIC, "<init>", "(" + corDesc + ")V", null, null);
@@ -112,15 +111,15 @@ final class ListenerRegistryFactory {
      *
      * @param listeners the listeners to add to the registry.
      * @return the high performance registry.
-     * @param <T> the event type.
+     * @param <EVENT> the event type.
      */
-    <T extends Event> @NotNull Consumer<@NotNull T> create(
-            final @NotNull Consumer<@NotNull T> @NotNull [] listeners
+    <EVENT extends Event> @NotNull Consumer<@NotNull EVENT> create(
+            final @NotNull Consumer<@NotNull EVENT> @NotNull [] listeners
     ) {
-        final @NotNull Class<? extends Consumer<@NotNull T>> executorClass = generateExecutor(listeners.length);
+        val executorClass = this.<EVENT>generateExecutor(listeners.length);
         try {
             return executorClass.getConstructor(Arrays.stream(listeners).map(listener -> Consumer.class).toArray(Class[]::new)).newInstance((Object[]) listeners);
-        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+        } catch (final InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new RuntimeException("Unable to initialize " + executorClass, e);
         }
     }

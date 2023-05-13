@@ -15,11 +15,11 @@ public interface SingularListener<EVENT extends Event> extends GenericListener {
     /**
      * @return the event type the backing consumer is listening to.
      */
-    Class<@NotNull EVENT> eventType();
+    @NotNull Class<EVENT> eventType();
     /**
      * @return the backing consumer itself.
      */
-    Consumer<@NotNull EVENT> listener();
+    @NotNull Consumer<@NotNull EVENT> listener();
 
     /**
      * Accepts this listener to a consumer.

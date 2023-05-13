@@ -12,7 +12,7 @@ import java.util.function.Consumer;
  * @param priority the listener's priority.
  * @author mine_diver
  */
-record ListenerContainer(@NotNull Consumer<@NotNull Event> invoker, int priority) implements Comparable<ListenerContainer> {
+record ListenerContainer(@NotNull Consumer<@NotNull Event> invoker, int priority) implements Comparable<@NotNull ListenerContainer> {
     /**
      * Compares listener containers by priority in backwards order,
      * so that high priority comes first.
