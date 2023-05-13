@@ -14,7 +14,7 @@ public class Benchmark {
     @Setup
     public void setup() {
         eventBus = new EventBus();
-        eventBus.register(Listener.staticMethods().listenerClass(TestListener.class).build());
+        eventBus.register(Listener.staticMethods().listener(TestListener.class).build());
     }
 
     @org.openjdk.jmh.annotations.Benchmark

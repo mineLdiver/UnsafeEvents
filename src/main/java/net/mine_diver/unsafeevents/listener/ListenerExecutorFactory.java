@@ -1,7 +1,6 @@
 package net.mine_diver.unsafeevents.listener;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
+import lombok.experimental.UtilityClass;
 import net.mine_diver.unsafeevents.Event;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,7 +28,7 @@ import static org.objectweb.asm.Opcodes.*;
  *
  * @author mine_diver
  */
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@UtilityClass
 final class ListenerExecutorFactory {
     /**
      * Generates and defines a high performance executor.
@@ -39,7 +38,7 @@ final class ListenerExecutorFactory {
      * @return the high performance listener executor class.
      * @param <T> the event type.
      */
-    private static <T extends Event> @NotNull Class<? extends Consumer<@NotNull T>> generateExecutor(
+    private <T extends Event> @NotNull Class<? extends Consumer<@NotNull T>> generateExecutor(
             final @NotNull Method method,
             final @NotNull Class<T> eventType
     ) {
@@ -67,7 +66,7 @@ final class ListenerExecutorFactory {
      * @param eventType the event type class that the listener is listening to.
      * @return the byte array containing the class's bytecode.
      */
-    private static byte @NotNull [] generateExecutorClass(
+    private byte @NotNull [] generateExecutorClass(
             final @NotNull Method m,
             final @NotNull String name,
             final @NotNull Class<? extends Event> eventType
@@ -114,7 +113,7 @@ final class ListenerExecutorFactory {
      * The executor cache. Helps to avoid creating too many unnecessary objects.
      */
     @NotNull
-    private static final ConcurrentMap<Method, Class<? extends Consumer<? extends Event>>> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Method, Class<? extends Consumer<? extends Event>>> cache = new ConcurrentHashMap<>();
 
     /**
      * Creates a high performance listener executor.
@@ -125,7 +124,7 @@ final class ListenerExecutorFactory {
      * @return the high performance executor.
      * @param <EVENT> the event type.
      */
-    static <EVENT extends Event> @NotNull Consumer<@NotNull EVENT> create(
+    <EVENT extends Event> @NotNull Consumer<@NotNull EVENT> create(
             final @Nullable Object target,
             final @NotNull Method method,
             final @NotNull Class<EVENT> eventType

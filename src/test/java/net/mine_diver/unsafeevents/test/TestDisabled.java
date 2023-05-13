@@ -9,8 +9,8 @@ public class TestDisabled {
     public static void main(String[] args) {
         EVENT_BUS.disableDispatch();
         TestListener listener = new TestListener();
-        EVENT_BUS.register(Listener.staticMethods().listenerClass(listener.getClass()).build());
+        EVENT_BUS.register(Listener.staticMethods().listener(listener.getClass()).build());
         EVENT_BUS.enableDispatch();
-        EVENT_BUS.post(new TestEvent());
+        EVENT_BUS.post(TestEvent.builder().stream(System.out).build());
     }
 }

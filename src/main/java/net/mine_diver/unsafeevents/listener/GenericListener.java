@@ -24,7 +24,9 @@ public interface GenericListener {
      * @see ListenerPriority
      * @see EventListener#DEFAULT_PRIORITY
      */
-    int priority();
+    default int priority() {
+        return EventListener.DEFAULT_PRIORITY;
+    }
 
     /**
      * Accepts current listener to a consumer

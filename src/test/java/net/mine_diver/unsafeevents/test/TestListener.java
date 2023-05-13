@@ -4,7 +4,7 @@ import net.mine_diver.unsafeevents.listener.EventListener;
 
 public class TestListener {
     static {
-        TestDisabled.EVENT_BUS.post(new TestEvent());
+        TestDisabled.EVENT_BUS.post(TestEvent.builder().build());
     }
 
     @EventListener

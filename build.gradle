@@ -54,6 +54,9 @@ dependencies {
     jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
     jmhCompileOnly 'org.projectlombok:lombok:1.18.24'
     jmhAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
+
+    testCompileOnly 'org.projectlombok:lombok:1.18.24'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
 }
 
 test {

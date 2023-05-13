@@ -1,5 +1,6 @@
 package net.mine_diver.unsafeevents.util;
 
+import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.NotNull;
 import sun.misc.Unsafe;
 
@@ -11,18 +12,19 @@ import java.lang.reflect.Field;
  *
  * @author mine_diver
  */
+@UtilityClass
 public class UnsafeProvider {
     /**
      * The unsafe instance obtained using reflection.
      */
     @NotNull
-    public static final Unsafe theUnsafe;
+    public final Unsafe theUnsafe;
 
     /**
      * IMPL_LOOKUP instance obtained using unsafe.
      */
     @NotNull
-    public static final MethodHandles.Lookup IMPL_LOOKUP;
+    public final MethodHandles.Lookup IMPL_LOOKUP;
 
     static {
         try {

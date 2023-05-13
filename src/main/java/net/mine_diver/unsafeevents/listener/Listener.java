@@ -78,12 +78,12 @@ public class Listener {
             builderMethodName = "staticMethods",
             builderClassName = "StaticListenerBuilder"
     )
-    private static @NotNull CompositeListener createStatic(
-            final @NotNull Class<?> listenerClass,
+    private @NotNull CompositeListener createStatic(
+            final @NotNull Class<?> listener,
             final int priority
     ) {
         final @NotNull ImmutableList.Builder<SingularListener<?>> listeners = ImmutableList.builder();
-        for (final @NotNull Method method : listenerClass.getDeclaredMethods()) {
+        for (final @NotNull Method method : listener.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(EventListener.class) || !Modifier.isStatic(method.getModifiers()))
                 continue;
             final @NotNull EventListener eventListener = method.getAnnotation(EventListener.class);
@@ -108,7 +108,7 @@ public class Listener {
             builderMethodName = "object",
             builderClassName = "ObjectListenerBuilder"
     )
-    private static <T> @NotNull CompositeListener createObject(
+    private <T> @NotNull CompositeListener createObject(
             final @NotNull T listener,
             int priority
     ) {
@@ -143,7 +143,7 @@ public class Listener {
             builderMethodName = "reflection",
             builderClassName = "ReflectionListenerBuilder"
     )
-    private static <EVENT extends Event> @NotNull SingularListener<EVENT> createReflection(
+    private <EVENT extends Event> @NotNull SingularListener<EVENT> createReflection(
             @Nullable Class<EVENT> eventType,
             final @Nullable Object listener,
             final @NotNull Method method,
@@ -177,7 +177,7 @@ public class Listener {
             builderMethodName = "simple",
             builderClassName = "SimpleListenerBuilder"
     )
-    private static <EVENT extends Event> @NotNull SingularListener<EVENT> createSimple(
+    private <EVENT extends Event> @NotNull SingularListener<EVENT> createSimple(
             @Nullable Class<EVENT> eventType,
             final @NotNull Consumer<EVENT> listener,
             final int priority

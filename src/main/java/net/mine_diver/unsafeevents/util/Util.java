@@ -1,7 +1,6 @@
 package net.mine_diver.unsafeevents.util;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
+import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -12,8 +11,8 @@ import java.util.function.Consumer;
  *
  * @author mine_diver
  */
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-public final class Util {
+@UtilityClass
+public class Util {
     /**
      * Applies an initializer to an object and returns the object.
      *
@@ -27,7 +26,7 @@ public final class Util {
      * @param <T> the object's type.
      */
     @Contract("_, _ -> param1")
-    public static <T> @NotNull T make(
+    public <T> @NotNull T make(
             final @NotNull T object,
             final @NotNull Consumer<@NotNull T> initializer
     ) {
