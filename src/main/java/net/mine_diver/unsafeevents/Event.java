@@ -85,25 +85,24 @@ public abstract class Event {
      */
     private static final @NotNull Reference2IntMap<@NotNull Class<? extends Event>> EVENT_ID_LOOKUP = Util.make(new Reference2IntOpenHashMap<>(), map -> map.defaultReturnValue(-1));
 
-    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventClass -> NEXT_ID.incrementAndGet();
+    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventType -> NEXT_ID.getAndIncrement();
 
     /**
      * Returns the event ID of the specified event type from {@link Event#EVENT_ID_LOOKUP}.
      *
      * <p>
      *     If the event ID of this event type is absent in the global lookup,
-     *     allocates a dummy instance of this event type, retrieves the ID
-     *     using {@link Event#getEventID()}, and stores it in the lookup.
+     *     generates a new ID and stores it in the lookup.
      * </p>
      *
-     * @param eventClass the event class of which the ID must be returned.
+     * @param eventType the event type of which the ID must be returned.
      * @return the ID of the specified event type.
      * @param <EVENT> the event type.
      */
     public static <EVENT extends Event> int getEventID(
-            final @NotNull Class<EVENT> eventClass
+            final @NotNull Class<EVENT> eventType
     ) {
-        return EVENT_ID_LOOKUP.computeIfAbsent(eventClass, ID_GENERATOR);
+        return EVENT_ID_LOOKUP.computeIfAbsent(eventType, ID_GENERATOR);
     }
 
     /**

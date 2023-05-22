@@ -1,6 +1,7 @@
 package net.mine_diver.unsafeevents.benchmarks;
 
 import net.mine_diver.unsafeevents.EventBus;
+import net.mine_diver.unsafeevents.MutableEventBus;
 import net.mine_diver.unsafeevents.listener.Listener;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -22,5 +23,5 @@ public class Benchmark {
         blackhole.consume(eventBus.post(TestEvent.builder().sum(0).build()).sum);
     }
 
-    public EventBus eventBus;
+    public MutableEventBus eventBus;
 }

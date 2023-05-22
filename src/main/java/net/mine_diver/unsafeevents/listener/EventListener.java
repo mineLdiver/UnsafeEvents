@@ -1,5 +1,7 @@
 package net.mine_diver.unsafeevents.listener;
 
+import net.mine_diver.unsafeevents.event.EventPhases;
+
 import java.lang.annotation.*;
 
 /**
@@ -25,6 +27,19 @@ public @interface EventListener {
      * @see ListenerPriority
      */
     int DEFAULT_PRIORITY = 0;
+
+    /**
+     * Returns the event phase of this listener.
+     *
+     * <p>
+     *     Can be any string. Ordering of phases
+     *     is defined individually for each
+     *     event type.
+     * </p>
+     *
+     * @return the event phase of this listener.
+     */
+    String phase() default EventPhases.DEFAULT_PHASE;
 
     /**
      * Returns the enum priority of the listener.

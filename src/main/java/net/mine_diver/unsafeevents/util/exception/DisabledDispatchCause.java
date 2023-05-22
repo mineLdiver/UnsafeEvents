@@ -1,7 +1,6 @@
 package net.mine_diver.unsafeevents.util.exception;
 
-import net.mine_diver.unsafeevents.EventBusController;
-import net.mine_diver.unsafeevents.ManagedEventBus;
+import net.mine_diver.unsafeevents.eventbus.ManagedEventBus;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -10,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  *     Used as a cause for {@link IllegalDispatchException},
  *     providing additional information, such as the stack trace
- *     of {@link EventBusController#disableDispatch(String)}, which led to the
+ *     of {@link ManagedEventBus.Controller#disableDispatch(String)}, which led to the
  *     illegal state in the first place.
  * </p>
  *

@@ -7,6 +7,7 @@ import lombok.val;
 import net.jodah.typetools.TypeResolver;
 import net.mine_diver.unsafeevents.Event;
 import net.mine_diver.unsafeevents.EventBus;
+import net.mine_diver.unsafeevents.event.EventPhases;
 import net.mine_diver.unsafeevents.util.exception.listener.IncompatibleEventTypesException;
 import net.mine_diver.unsafeevents.util.exception.listener.InvalidMethodParameterCountException;
 import net.mine_diver.unsafeevents.util.exception.listener.InvalidMethodParameterTypeException;
@@ -81,8 +82,11 @@ public class Listener {
     )
     private @NotNull CompositeListener createStatic(
             final @NotNull Class<?> listener,
+            @Nullable String phase,
             final int priority
     ) {
+        if (phase == null)
+            phase = EventPhases.DEFAULT_PHASE;
         val listeners = ImmutableList.<SingularListener<?>>builder();
         for (val method : listener.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(EventListener.class) || !Modifier.isStatic(method.getModifiers()))
@@ -92,6 +96,11 @@ public class Listener {
             listeners.add(
                     Listener.reflection()
                             .method(method)
+                            .phase(
+                                    eventListener.phase().equals(EventPhases.DEFAULT_PHASE) ?
+                                            phase :
+                                            eventListener.phase()
+                            )
                             .priority(
                                     listenerPriority.custom ?
                                             eventListener.numPriority() == EventListener.DEFAULT_PRIORITY ?
@@ -102,7 +111,7 @@ public class Listener {
                             .build()
             );
         }
-        return new SimpleCompositeListener(listeners.build(), priority);
+        return new SimpleCompositeListener(listeners.build(), phase, priority);
     }
 
     @Builder(
@@ -111,8 +120,11 @@ public class Listener {
     )
     private <T> @NotNull CompositeListener createObject(
             final @NotNull T listener,
+            @Nullable String phase,
             int priority
     ) {
+        if (phase == null)
+            phase = EventPhases.DEFAULT_PHASE;
         val listeners = ImmutableList.<SingularListener<?>>builder();
         @Nullable var curClass = listener.getClass();
         while (curClass != null) {
@@ -125,6 +137,11 @@ public class Listener {
                         Listener.reflection()
                                 .listener(listener)
                                 .method(method)
+                                .phase(
+                                        eventListener.phase().equals(EventPhases.DEFAULT_PHASE) ?
+                                                phase :
+                                                eventListener.phase()
+                                )
                                 .priority(
                                         listenerPriority.custom ?
                                                 eventListener.numPriority() == EventListener.DEFAULT_PRIORITY ?
@@ -137,7 +154,7 @@ public class Listener {
             }
             curClass = curClass.getSuperclass();
         }
-        return new SimpleCompositeListener(listeners.build(), priority);
+        return new SimpleCompositeListener(listeners.build(), phase, priority);
     }
 
     @Builder(
@@ -148,6 +165,7 @@ public class Listener {
             @Nullable Class<EVENT> eventType,
             final @Nullable Object listener,
             final @NotNull Method method,
+            final @Nullable String phase,
             final int priority
     ) {
         if (method.getParameterCount() != 1) throw new InvalidMethodParameterCountException(String.format(
@@ -170,6 +188,7 @@ public class Listener {
         return new SimpleSingularListener<>(
                 eventType,
                 ListenerExecutorFactory.create(listener, method, eventType), // creating a high performance executor for this method
+                phase == null ? EventPhases.DEFAULT_PHASE : phase,
                 priority
         );
     }
@@ -181,6 +200,7 @@ public class Listener {
     private <EVENT extends Event> @NotNull SingularListener<@NotNull EVENT> createSimple(
             @Nullable Class<EVENT> eventType,
             final @NotNull Consumer<@NotNull EVENT> listener,
+            final @Nullable String phase,
             final int priority
     ) {
         // resolving the event type from consumer's parameters
@@ -200,6 +220,7 @@ public class Listener {
         return new SimpleSingularListener<>(
                 eventType,
                 listener,
+                phase == null ? EventPhases.DEFAULT_PHASE : phase,
                 priority
         );
     }

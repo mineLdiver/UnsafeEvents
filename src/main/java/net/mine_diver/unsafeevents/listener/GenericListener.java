@@ -1,5 +1,6 @@
 package net.mine_diver.unsafeevents.listener;
 
+import net.mine_diver.unsafeevents.event.EventPhases;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Consumer;
@@ -18,6 +19,16 @@ import java.util.function.Consumer;
  * @author mine_diver
  */
 public interface GenericListener {
+    /**
+     * @return listener's phase. Can be any string.
+     * Ordering of phases is defined individually for each
+     * event type. "default" is default.
+     * @see EventPhases#DEFAULT_PHASE
+     */
+    default String phase() {
+        return EventPhases.DEFAULT_PHASE;
+    }
+
     /**
      * @return listener's priority. Can be any integer number.
      * High priority - early execution. 0 is default.

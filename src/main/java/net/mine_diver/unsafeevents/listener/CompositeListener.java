@@ -14,6 +14,11 @@ import java.util.function.Consumer;
  * </p>
  *
  * <p>
+ *     {@link #phase()} replaces the default
+ *     phase for sub-listeners.
+ * </p>
+ *
+ * <p>
  *     {@link #priority()} replaces the default
  *     priority for sub-listeners.
  * </p>

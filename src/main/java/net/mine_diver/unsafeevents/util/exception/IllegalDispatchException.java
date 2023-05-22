@@ -1,7 +1,6 @@
 package net.mine_diver.unsafeevents.util.exception;
 
-import net.mine_diver.unsafeevents.EventBusController;
-import net.mine_diver.unsafeevents.ManagedEventBus;
+import net.mine_diver.unsafeevents.eventbus.ManagedEventBus;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -9,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * <p>
  *     An example of such illegal state is a {@link ManagedEventBus}
- *     with dispatch disabled through {@link EventBusController#disableDispatch(String)}.
+ *     with dispatch disabled through {@link ManagedEventBus.Controller#disableDispatch(String)}.
  * </p>
  *
  * @see DisabledDispatchCause

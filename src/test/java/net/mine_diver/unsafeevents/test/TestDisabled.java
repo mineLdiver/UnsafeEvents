@@ -1,14 +1,13 @@
 package net.mine_diver.unsafeevents.test;
 
 import lombok.val;
-import net.mine_diver.unsafeevents.EventBus;
-import net.mine_diver.unsafeevents.EventBusController;
-import net.mine_diver.unsafeevents.ManagedEventBus;
+import net.mine_diver.unsafeevents.MutableEventBus;
+import net.mine_diver.unsafeevents.eventbus.ManagedEventBus;
 import net.mine_diver.unsafeevents.listener.Listener;
 
 public class TestDisabled {
-    public static final EventBus EVENT_BUS;
-    private static final EventBusController EVENT_BUS_CONTROLLER;
+    public static final MutableEventBus EVENT_BUS;
+    private static final ManagedEventBus.Controller EVENT_BUS_CONTROLLER;
     static {
         val instance = ManagedEventBus.create();
         EVENT_BUS = instance.eventBus();
