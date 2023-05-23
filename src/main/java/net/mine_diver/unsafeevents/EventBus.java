@@ -14,16 +14,15 @@ import lombok.val;
 import net.mine_diver.unsafeevents.event.EventPhases;
 import net.mine_diver.unsafeevents.event.PhaseOrdering;
 import net.mine_diver.unsafeevents.event.PhaseOrderingInvalidationEvent;
-import net.mine_diver.unsafeevents.listener.CompositeListener;
-import net.mine_diver.unsafeevents.listener.EventListener;
-import net.mine_diver.unsafeevents.listener.Listener;
-import net.mine_diver.unsafeevents.listener.SingularListener;
+import net.mine_diver.unsafeevents.listener.*;
 import net.mine_diver.unsafeevents.util.Util;
 import net.mine_diver.unsafeevents.util.collection.Int2ReferenceArrayMapWrapper;
 import net.mine_diver.unsafeevents.util.exception.DispatchException;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
@@ -422,5 +421,294 @@ public class EventBus implements MutableEventBus, AutoCloseable {
             ), throwable);
         }
         return MutableEventBus.super.post(event); // performing a finalization and returning the event to allow for a one line check of a parameter in the event
+    }
+
+
+
+    // DEPRECATED
+
+    /**
+     * Registers only static methods annotated with {@link EventListener}
+     * in the specified class as listeners in this bus.
+     *
+     * @deprecated Use {@link #register(GenericListener)} with {@link Listener#staticMethods()} instead.
+     *
+     * @param listenerClass the class containing static {@link EventListener} methods.
+     * @throws IllegalArgumentException if an {@link EventListener} method in the hierarchy
+     *                                  has no or more than 1 parameter, or if the method parameter is not an event
+     */
+    @Deprecated
+    public void register(
+            final @NotNull Class<?> listenerClass
+    ) {
+        register(
+                Listener.staticMethods()
+                        .listener(listenerClass)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers only non-static methods annotated with {@link EventListener}
+     * in the class of the specified object.
+     *
+     * <p>
+     *     The listeners are only registered under this object's instance.
+     * </p>
+     *
+     * @deprecated Use {@link #register(GenericListener)} with {@link Listener#object()} instead.
+     *
+     * @param listener the object which class contains non-static {@link EventListener} methods.
+     * @throws IllegalArgumentException if an {@link EventListener} method in the hierarchy
+     *                                  has no or more than 1 parameter, or if the method parameter is not an event
+     */
+    @Deprecated
+    public void register(
+            final @NotNull Object listener
+    ) {
+        register(
+                Listener.object()
+                        .listener(listener)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers this object's methods from a class somewhere in the hierarchy of this object.
+     *
+     * <p>
+     *     Allows to limit the bus to only registering methods starting from a specific point in the hierarchy of this object.
+     *     For example, class B extends class A. If {@code register(A.class, new B())} is run,
+     *     only the {@link EventListener} methods of class A are going to be registered, but associated to an instance of B.
+     *     If {@code register(B.class, new B())} is run, both class A and class B {@link EventListener} methods are going to
+     *     be registered.
+     * </p>
+     *
+     * <p>
+     *     If listener instance is null, only static {@link EventListener} methods are going to be registered,
+     *     otherwise static methods are ignored and only non-static methods are registered.
+     * </p>
+     *
+     * @deprecated Use {@link #register(GenericListener)} with {@link Listener#staticMethods()} or {@link Listener#object()} instead.
+     *
+     * @param listenerClass the listener class starting from which in the hierarchy the {@link EventListener} methods are registered.
+     * @param listener the listener object. If null, static {@link EventListener} methods are registered instead.
+     * @param <T> the instance type.
+     * @param <U> a child type of instance, allows to specify higher hierarchy types, including {@link T}, for listener class type.
+     * @throws IllegalArgumentException if an {@link EventListener} method in the hierarchy
+     *                                  has no or more than 1 parameter, or if the method parameter is not an event
+     */
+    @Deprecated
+    public <T, U extends T> void register(
+            final @NotNull Class<? super U> listenerClass,
+            final @Nullable T listener
+    ) {
+        register(
+                listener == null ?
+                        Listener.staticMethods()
+                                .listener(listenerClass)
+                                .build() :
+                        Listener.object()
+                                .listener(listener)
+                                .build()
+        );
+    }
+
+    /**
+     * Registers a static {@link EventListener} {@link Method} with {@link EventListener#DEFAULT_PRIORITY} priority.
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#reflection()} instead.
+     *
+     * @param method the static {@link EventListener} method to register as a listener.
+     * @throws IllegalArgumentException if the method has no or more than 1 parameter,
+     *                                  or if the method parameter is not an event
+     */
+    @Deprecated
+    public void register(
+            final @NotNull Method method
+    ) {
+        register(
+                Listener.reflection()
+                        .method(method)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers a static {@link EventListener} {@link Method} with a custom priority.
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#reflection()} instead.
+     *
+     * @param method the static {@link EventListener} method to register as a listener.
+     * @param priority the priority to assign to this listener.
+     * @throws IllegalArgumentException if the method has no or more than 1 parameter,
+     *                                  or if the method parameter is not an event
+     * @see ListenerPriority
+     */
+    @Deprecated
+    public void register(
+            final @NotNull Method method,
+            final int priority
+    ) {
+        register(
+                Listener.reflection()
+                        .method(method)
+                        .priority(priority)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers an {@link EventListener} {@link Method} with {@link EventListener#DEFAULT_PRIORITY} priority.
+     *
+     * <p>
+     *     If listener instance is null, the {@link EventListener} method is registered as static.
+     * </p>
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#reflection()} instead.
+     *
+     * @param method the {@link EventListener} method to register as a listener.
+     * @param listener the listener object. If null, the method is registered as static.
+     * @throws IllegalArgumentException if the method has no or more than 1 parameter,
+     *                                  or if the method parameter is not an event
+     */
+    @Deprecated
+    public void register(
+            final @NotNull Method method,
+            final @Nullable Object listener
+    ) {
+        register(
+                Listener.reflection()
+                        .method(method)
+                        .listener(listener)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers an {@link EventListener} {@link Method} with a custom priority.
+     *
+     * <p>
+     *     If listener instance is null, the {@link EventListener} method is registered as static.
+     * </p>
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#reflection()} instead.
+     *
+     * @param method the {@link EventListener} method to register as a listener.
+     * @param listener the listener object. If null, the method is registered as static.
+     * @param priority the priority to assign to this listener.
+     * @param <EVENT> the event type.
+     * @throws IllegalArgumentException if the method has no or more than 1 parameter,
+     *                                  or if the method parameter is not an event
+     */
+    @Deprecated
+    public <EVENT extends Event> void register(
+            final @NotNull Method method,
+            final @Nullable Object listener,
+            final int priority
+    ) {
+        register(
+                Listener.reflection()
+                        .method(method)
+                        .listener(listener)
+                        .priority(priority)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers an {@link Event} {@link Consumer} as a listener with {@link EventListener#DEFAULT_PRIORITY} priority.
+     *
+     * <p>
+     *     This method automatically resolves the event type from the consumer's parameters.
+     * </p>
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#simple()} instead.
+     *
+     * @param listener the consumer to register as a listener.
+     * @param <EVENT> the event type.
+     */
+    @Deprecated
+    public <EVENT extends Event> void register(
+            final @NotNull Consumer<@NotNull EVENT> listener
+    ) {
+        register(
+                Listener.<EVENT>simple()
+                        .listener(listener)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers an {@link Event} {@link Consumer} as a listener with a custom priority.
+     *
+     * <p>
+     *     This method automatically resolves the event type from the consumer's parameters.
+     * </p>
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#simple()} instead.
+     *
+     * @param listener the consumer to register as a listener.
+     * @param priority the priority to assign to this listener.
+     * @param <EVENT> the event type.
+     */
+    @Deprecated
+    public <EVENT extends Event> void register(
+            final @NotNull Consumer<@NotNull EVENT> listener,
+            final int priority
+    ) {
+        register(
+                Listener.<EVENT>simple()
+                        .listener(listener)
+                        .priority(priority)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers an {@link Event} {@link Consumer} as a listener with {@link EventListener#DEFAULT_PRIORITY} priority.
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#simple()} instead.
+     *
+     * @param eventType the event type class. Skips the automatic resolving.
+     * @param listener the consumer to register as a listener.
+     * @param <EVENT> the event type.
+     */
+    @Deprecated
+    public <EVENT extends Event> void register(
+            final @NotNull Class<EVENT> eventType,
+            final @NotNull Consumer<@NotNull EVENT> listener
+    ) {
+        register(
+                Listener.<EVENT>simple()
+                        .eventType(eventType)
+                        .listener(listener)
+                        .build()
+        );
+    }
+
+    /**
+     * Registers an {@link Event} {@link Consumer} as a listener with a custom priority.
+     *
+     * @deprecated Use {@link #register(SingularListener)} with {@link Listener#simple()} instead.
+     *
+     * @param eventType the event type class. Skips the automatic resolving.
+     * @param listener the consumer to register as a listener.
+     * @param priority the priority to assign to this listener.
+     * @param <EVENT> the event type.
+     */
+    @Deprecated
+    public <EVENT extends Event> void register(
+            final @NotNull Class<EVENT> eventType,
+            final @NotNull Consumer<@NotNull EVENT> listener,
+            final int priority
+    ) {
+        register(
+                Listener.<EVENT>simple()
+                        .eventType(eventType)
+                        .listener(listener)
+                        .priority(priority)
+                        .build()
+        );
     }
 }
