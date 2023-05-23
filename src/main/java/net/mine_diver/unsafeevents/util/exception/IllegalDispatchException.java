@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * <p>
  *     An example of such illegal state is a {@link ManagedEventBus}
- *     with dispatch disabled through {@link ManagedEventBus.Controller#disableDispatch(String)}.
+ *     with dispatch disabled through {@link ManagedEventBus#disableDispatch(String)}.
  * </p>
  *
  * @see DisabledDispatchCause

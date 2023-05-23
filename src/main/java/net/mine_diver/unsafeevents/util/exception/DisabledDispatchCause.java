@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  *     Used as a cause for {@link IllegalDispatchException},
  *     providing additional information, such as the stack trace
- *     of {@link ManagedEventBus.Controller#disableDispatch(String)}, which led to the
+ *     of {@link ManagedEventBus#disableDispatch(String)}, which led to the
  *     illegal state in the first place.
  * </p>
  *
