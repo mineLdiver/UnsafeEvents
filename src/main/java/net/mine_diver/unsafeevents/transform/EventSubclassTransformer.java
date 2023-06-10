@@ -75,6 +75,7 @@ public class EventSubclassTransformer {
                 .findAny()
                 .orElseGet(() -> {
                     val clinit = new MethodNode(METHOD_CLINIT_ACCESS, METHOD_CLINIT_NAME, METHOD_CLINIT_DESC, null, null);
+                    clinit.instructions.add(new InsnNode(RETURN));
                     eventNode.methods.add(clinit);
                     return clinit;
                 })
