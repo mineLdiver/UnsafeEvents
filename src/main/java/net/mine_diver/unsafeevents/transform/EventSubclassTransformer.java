@@ -31,6 +31,10 @@ public class EventSubclassTransformer {
     private final String METHOD_GETEVENTID_NAME = "getEventID";
     private final String METHOD_GETEVENTID_DESC = Type.getMethodDescriptor(Type.INT_TYPE);
 
+    public boolean handles(final @NotNull String name) {
+        return !name.equals("net.mine_diver.unsafeevents.Event");
+    }
+
     public boolean transform(final @NotNull ClassLoader classLoader, final @NotNull ClassNode eventNode) {
         final Class<?> superClass;
         try {
