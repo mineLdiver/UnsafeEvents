@@ -20,7 +20,7 @@ import java.util.function.ToIntFunction;
  * <p>
  *     Every event type must implement {@link Event#getEventID()} that returns
  *     a constant ID of the event obtained through invoking
- *     {@link Event#NEXT_ID}'s {@link AtomicInteger#incrementAndGet()} method once
+ *     {@link Event#INTERNAL_NEXT_ID}'s {@link AtomicInteger#incrementAndGet()} method once
  *     and storing the value in a static final field.
  * </p>
  *
@@ -76,7 +76,13 @@ public abstract class Event {
      * @see #getEventID()
      * @see #getEventID(Class)
      */
-    private static final @NotNull AtomicInteger NEXT_ID = new AtomicInteger();
+    private static final @NotNull AtomicInteger INTERNAL_NEXT_ID = new AtomicInteger();
+
+    /**
+     * @deprecated this is dangerous to use. Use {@link #nextID()} instead.
+     */
+    @Deprecated(forRemoval = true)
+    protected static final @NotNull AtomicInteger NEXT_ID = INTERNAL_NEXT_ID;
 
     /**
      * Global event type to event ID lookup,
@@ -85,7 +91,7 @@ public abstract class Event {
      */
     private static final @NotNull Reference2IntMap<@NotNull Class<? extends Event>> EVENT_ID_LOOKUP = Util.make(new Reference2IntOpenHashMap<>(), map -> map.defaultReturnValue(-1));
 
-    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventType -> NEXT_ID.getAndIncrement();
+    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventType -> INTERNAL_NEXT_ID.incrementAndGet();
 
     /**
      * Returns the event ID of the specified event type from {@link Event#EVENT_ID_LOOKUP}.
