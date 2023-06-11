@@ -22,21 +22,17 @@
  * SOFTWARE.
  */
 
-package net.mine_diver.unsafeevents.listener;
+package net.mine_diver.unsafeevents.event;
 
-import com.google.common.collect.ImmutableList;
-import org.jetbrains.annotations.NotNull;
+import java.lang.annotation.*;
 
 /**
- * A simple record implementation of {@link CompositeListener}.
+ * Marks an event as cancelable.
  *
- * @param subListeners an immutable list of sub-listeners.
- * @param phase the default phase for sub-listeners.
- * @param priority the default priority for sub-listeners.
  * @author mine_diver
  */
-public record SimpleCompositeListener(
-        @NotNull ImmutableList<@NotNull SingularListener<?>> subListeners,
-        @NotNull String phase,
-        int priority
-) implements CompositeListener {}
+@Inherited
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Documented
+public @interface Cancelable {}

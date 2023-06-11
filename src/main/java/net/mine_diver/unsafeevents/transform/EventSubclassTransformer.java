@@ -1,8 +1,33 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 mine_diver
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package net.mine_diver.unsafeevents.transform;
 
 import lombok.experimental.UtilityClass;
 import lombok.val;
 import net.mine_diver.unsafeevents.Event;
+import net.mine_diver.unsafeevents.util.Util;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
@@ -31,6 +56,19 @@ public class EventSubclassTransformer {
     private final String METHOD_GETEVENTID_NAME = "getEventID";
     private final String METHOD_GETEVENTID_DESC = Type.getMethodDescriptor(Type.INT_TYPE);
 
+    private final String CLASS_CANCELABLE_DESC = "Lnet/mine_diver/unsafeevents/event/Cancelable;";
+
+    private final int METHOD_ISCANCELABLE_ACCESS = Modifier.PUBLIC;
+    private final String METHOD_ISCANCELABLE_NAME = "isCancelable";
+    private final String METHOD_ISCANCELABLE_DESC = Type.getMethodDescriptor(Type.BOOLEAN_TYPE);
+    private final MethodNode METHOD_ISCANCELABLE = Util.make(
+            new MethodNode(METHOD_ISCANCELABLE_ACCESS, METHOD_ISCANCELABLE_NAME, METHOD_ISCANCELABLE_DESC, null, null),
+            methodNode -> {
+                methodNode.instructions.add(new InsnNode(ICONST_1));
+                methodNode.instructions.add(new InsnNode(IRETURN));
+            }
+    );
+
     public boolean handles(final @NotNull String name) {
         return !name.equals("net.mine_diver.unsafeevents.Event");
     }
@@ -43,18 +81,36 @@ public class EventSubclassTransformer {
             throw new RuntimeException(e);
         }
         if (Event.class.isAssignableFrom(superClass) && !Modifier.isAbstract(eventNode.access)) {
-            val noGetEventId = eventNode.methods
-                    .stream()
-                    .noneMatch(methodNode ->
-                            (Modifier.isProtected(methodNode.access) || Modifier.isPublic(methodNode.access)) &&
-                                    methodNode.desc.equals(METHOD_GETEVENTID_DESC) &&
-                                    methodNode.name.equals(METHOD_GETEVENTID_NAME)
-                    );
-            if (noGetEventId) {
+            var transformed = false;
+            if (
+                    eventNode.methods
+                            .stream()
+                            .noneMatch(methodNode ->
+                                    (Modifier.isProtected(methodNode.access) || Modifier.isPublic(methodNode.access)) &&
+                                            METHOD_GETEVENTID_NAME.equals(methodNode.name) &&
+                                            METHOD_GETEVENTID_DESC.equals(methodNode.desc)
+                            )
+            ) {
                 addEventIdField(eventNode);
                 addGetEventIdMethod(eventNode);
+                transformed = true;
             }
-            return noGetEventId;
+            if (
+                    eventNode.methods
+                            .stream()
+                            .noneMatch(methodNode ->
+                                    Modifier.isPublic(methodNode.access) &&
+                                            METHOD_ISCANCELABLE_NAME.equals(methodNode.name) &&
+                                            METHOD_ISCANCELABLE_DESC.equals(methodNode.desc)
+                            ) &&
+                            eventNode.visibleAnnotations
+                                    .stream()
+                                    .anyMatch(node -> CLASS_CANCELABLE_DESC.equals(node.desc))
+            ) {
+                addIsCancelable(eventNode);
+                transformed = true;
+            }
+            return transformed;
         }
         return false;
     }
@@ -68,9 +124,9 @@ public class EventSubclassTransformer {
         eventNode.methods
                 .stream()
                 .filter(methodNode ->
-                        methodNode.access == METHOD_CLINIT_ACCESS &&
-                                methodNode.name.equals(METHOD_CLINIT_NAME) &&
-                                methodNode.desc.equals(METHOD_CLINIT_DESC)
+                        METHOD_CLINIT_ACCESS == methodNode.access &&
+                                METHOD_CLINIT_NAME.equals(methodNode.name) &&
+                                METHOD_CLINIT_DESC.equals(methodNode.desc)
                 )
                 .findAny()
                 .orElseGet(() -> {
@@ -86,6 +142,10 @@ public class EventSubclassTransformer {
         val method = new MethodNode(METHOD_GETEVENTID_ACCESS, METHOD_GETEVENTID_NAME, METHOD_GETEVENTID_DESC, null, null);
         method.instructions.add(new FieldInsnNode(GETSTATIC, eventNode.name, FIELD_EVENTID_NAME, FIELD_EVENTID_DESC));
         method.instructions.add(new InsnNode(IRETURN));
-        eventNode.methods.add(method);
+        method.accept(eventNode);
+    }
+
+    private void addIsCancelable(final ClassNode eventNode) {
+        METHOD_ISCANCELABLE.accept(eventNode);
     }
 }

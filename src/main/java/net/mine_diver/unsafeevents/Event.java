@@ -1,12 +1,37 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 mine_diver
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package net.mine_diver.unsafeevents;
 
 import it.unimi.dsi.fastutil.objects.Reference2IntMap;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import lombok.val;
+import net.mine_diver.unsafeevents.event.Cancelable;
+import net.mine_diver.unsafeevents.util.UnsafeProvider;
 import net.mine_diver.unsafeevents.util.Util;
 import org.jetbrains.annotations.NotNull;
 
@@ -91,6 +116,13 @@ public abstract class Event {
      */
     private static final @NotNull Reference2IntMap<@NotNull Class<? extends Event>> EVENT_ID_LOOKUP = Util.make(new Reference2IntOpenHashMap<>(), map -> map.defaultReturnValue(-1));
 
+    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GETTER = eventType -> {
+        try {
+            return ((Event) UnsafeProvider.theUnsafe.allocateInstance(eventType)).getEventID();
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        }
+    };
     private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventType -> INTERNAL_NEXT_ID.incrementAndGet();
 
     /**
@@ -108,7 +140,21 @@ public abstract class Event {
     public static <EVENT extends Event> int getEventID(
             final @NotNull Class<EVENT> eventType
     ) {
-        return EVENT_ID_LOOKUP.computeIfAbsent(eventType, ID_GENERATOR);
+        /*
+            Due to backwards compatibility,
+            we have to get the ID from a dummy event instance.
+
+            There's a couple of scenarios:
+            1) The event is optimized and used #nextID on clinit,
+                in which case ID_GETTER will simply return
+                the statically cached ID.
+            2) The event is unoptimized, in which case the fallback
+                #getEventID from the base event class will be called
+                which will generate a new ID.
+
+            The first scenario also handles deprecated #NEXT_ID calls.
+         */
+        return EVENT_ID_LOOKUP.computeIfAbsent(eventType, ID_GETTER);
     }
 
     /**
@@ -125,19 +171,21 @@ public abstract class Event {
     protected static int nextID() {
         val callerClass = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
         if (!Event.class.isAssignableFrom(callerClass)) throw new IllegalCallerException();
-        return getEventID(callerClass.asSubclass(Event.class));
+        return EVENT_ID_LOOKUP.computeIfAbsent(callerClass.asSubclass(Event.class), ID_GENERATOR);
     }
-
-    /**
-     * Whether the event type is cancelable.
-     */
-    @Getter
-    private final boolean cancelable = false;
 
     /**
      * Whether the event is currently canceled.
      */
     private final @NotNull AtomicBoolean canceled = new AtomicBoolean();
+
+
+    /**
+     * @return whether the event type is cancelable.
+     */
+    public boolean isCancelable() {
+        return getClass().isAnnotationPresent(Cancelable.class);
+    }
 
     /**
      * Returns whether the event is currently canceled.
