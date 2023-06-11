@@ -35,6 +35,7 @@ import net.mine_diver.unsafeevents.util.UnsafeProvider;
 import net.mine_diver.unsafeevents.util.Util;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.invoke.MethodHandles;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.ToIntFunction;
@@ -154,7 +155,21 @@ public abstract class Event {
 
             The first scenario also handles deprecated #NEXT_ID calls.
          */
-        return EVENT_ID_LOOKUP.computeIfAbsent(eventType, ID_GETTER);
+        val eventId = EVENT_ID_LOOKUP.getInt(eventType);
+        if (eventId > -1)
+            return eventId;
+        try {
+            // try forcing clinit first
+            MethodHandles.lookup().ensureInitialized(eventType);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        return EVENT_ID_LOOKUP.computeIfAbsent(
+                eventType,
+                // if clinit didn't add an ID to the lookup,
+                // get the ID from the event class itself
+                ID_GETTER
+        );
     }
 
     /**
