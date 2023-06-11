@@ -103,6 +103,7 @@ public class EventSubclassTransformer {
                                             METHOD_ISCANCELABLE_NAME.equals(methodNode.name) &&
                                             METHOD_ISCANCELABLE_DESC.equals(methodNode.desc)
                             ) &&
+                            eventNode.visibleAnnotations != null &&
                             eventNode.visibleAnnotations
                                     .stream()
                                     .anyMatch(node -> CLASS_CANCELABLE_DESC.equals(node.desc))
