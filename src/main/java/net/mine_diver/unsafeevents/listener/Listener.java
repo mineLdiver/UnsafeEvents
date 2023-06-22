@@ -31,7 +31,6 @@ import lombok.val;
 import net.jodah.typetools.TypeResolver;
 import net.mine_diver.unsafeevents.Event;
 import net.mine_diver.unsafeevents.EventBus;
-import net.mine_diver.unsafeevents.event.EventPhases;
 import net.mine_diver.unsafeevents.util.exception.listener.IncompatibleEventTypesException;
 import net.mine_diver.unsafeevents.util.exception.listener.InvalidMethodParameterCountException;
 import net.mine_diver.unsafeevents.util.exception.listener.InvalidMethodParameterTypeException;
@@ -40,7 +39,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
 import java.util.function.Consumer;
+
+import static java.util.Objects.requireNonNullElse;
+import static net.mine_diver.unsafeevents.event.EventPhases.DEFAULT_PHASE;
+import static net.mine_diver.unsafeevents.listener.EventListener.DEFAULT_PRIORITY;
+import static net.mine_diver.unsafeevents.listener.EventListener.Helper.getPhase;
+import static net.mine_diver.unsafeevents.listener.EventListener.Helper.getPriority;
 
 /**
  * Default listener builders for {@link EventBus}.
@@ -106,36 +112,32 @@ public class Listener {
     )
     private @NotNull CompositeListener createStatic(
             final @NotNull Class<?> listener,
-            @Nullable String phase,
+            final @Nullable String phase,
             final int priority
     ) {
-        if (phase == null)
-            phase = EventPhases.DEFAULT_PHASE;
+        final String defaultPhase;
+        final int defaultPriority;
+        if (listener.isAnnotationPresent(EventListener.class)) {
+            val eventListener = listener.getAnnotation(EventListener.class);
+            defaultPhase = getPhase(eventListener, phase);
+            defaultPriority = getPriority(eventListener, priority);
+        } else {
+            defaultPhase = requireNonNullElse(phase, DEFAULT_PHASE);
+            defaultPriority = priority;
+        }
         val listeners = ImmutableList.<SingularListener<?>>builder();
         for (val method : listener.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(EventListener.class) || !Modifier.isStatic(method.getModifiers()))
                 continue;
-            val eventListener = method.getAnnotation(EventListener.class);
-            val listenerPriority = eventListener.priority();
             listeners.add(
                     Listener.reflection()
                             .method(method)
-                            .phase(
-                                    eventListener.phase().equals(EventPhases.DEFAULT_PHASE) ?
-                                            phase :
-                                            eventListener.phase()
-                            )
-                            .priority(
-                                    listenerPriority.custom ?
-                                            eventListener.numPriority() == EventListener.DEFAULT_PRIORITY ?
-                                                    priority :
-                                                    eventListener.numPriority() :
-                                            listenerPriority.numPriority
-                            )
+                            .phase(defaultPhase)
+                            .priority(defaultPriority)
                             .build()
             );
         }
-        return new SimpleCompositeListener(listeners.build(), phase, priority);
+        return new SimpleCompositeListener(listeners.build(), defaultPhase, defaultPriority);
     }
 
     @Builder(
@@ -147,38 +149,45 @@ public class Listener {
             @Nullable String phase,
             int priority
     ) {
-        if (phase == null)
-            phase = EventPhases.DEFAULT_PHASE;
         val listeners = ImmutableList.<SingularListener<?>>builder();
-        @Nullable var curClass = listener.getClass();
+        val classDeque = new ArrayDeque<Class<?>>();
+        val listenerClass = listener.getClass();
+        @Nullable var curClass = listenerClass;
         while (curClass != null) {
+            classDeque.push(curClass);
+            curClass = curClass.getSuperclass();
+        }
+        @NotNull var defaultPhase = DEFAULT_PHASE;
+        var defaultPriority = DEFAULT_PRIORITY;
+        while (!classDeque.isEmpty()) {
+            curClass = classDeque.pop();
+            @Nullable val compositeListener = curClass.getAnnotation(EventListener.class);
+            if (curClass == listenerClass) {
+                if (compositeListener != null) {
+                    defaultPhase = getPhase(compositeListener, phase);
+                    defaultPriority = getPriority(compositeListener, priority);
+                } else {
+                    defaultPhase = requireNonNullElse(phase, DEFAULT_PHASE);
+                    defaultPriority = priority;
+                }
+            } else if (compositeListener != null) {
+                defaultPhase = compositeListener.phase();
+                defaultPriority = getPriority(compositeListener);
+            }
             for (val method : curClass.getDeclaredMethods()) {
                 if (!method.isAnnotationPresent(EventListener.class) || Modifier.isStatic(method.getModifiers()))
                     continue;
-                val eventListener = method.getAnnotation(EventListener.class);
-                val listenerPriority = eventListener.priority();
                 listeners.add(
                         Listener.reflection()
                                 .listener(listener)
                                 .method(method)
-                                .phase(
-                                        eventListener.phase().equals(EventPhases.DEFAULT_PHASE) ?
-                                                phase :
-                                                eventListener.phase()
-                                )
-                                .priority(
-                                        listenerPriority.custom ?
-                                                eventListener.numPriority() == EventListener.DEFAULT_PRIORITY ?
-                                                        priority :
-                                                        eventListener.numPriority() :
-                                                listenerPriority.numPriority
-                                )
+                                .phase(defaultPhase)
+                                .priority(defaultPriority)
                                 .build()
                 );
             }
-            curClass = curClass.getSuperclass();
         }
-        return new SimpleCompositeListener(listeners.build(), phase, priority);
+        return new SimpleCompositeListener(listeners.build(), defaultPhase, defaultPriority);
     }
 
     @Builder(
@@ -209,11 +218,21 @@ public class Listener {
                 "Method %s#%s's parameter type (%s) is not assignable from the passed event type (%s)!",
                 method.getDeclaringClass().getName(), method.getName(), rawEventType.getName(), eventType.getName()
         ));
+        final String listenerPhase;
+        final int listenerPriority;
+        if (method.isAnnotationPresent(EventListener.class)) {
+            val eventListener = method.getAnnotation(EventListener.class);
+            listenerPhase = getPhase(eventListener, phase);
+            listenerPriority = getPriority(eventListener, priority);
+        } else {
+            listenerPhase = requireNonNullElse(phase, DEFAULT_PHASE);
+            listenerPriority = priority;
+        }
         return new SimpleSingularListener<>(
                 eventType,
                 ListenerExecutorFactory.create(listener, method, eventType), // creating a high performance executor for this method
-                phase == null ? EventPhases.DEFAULT_PHASE : phase,
-                priority
+                listenerPhase,
+                listenerPriority
         );
     }
 
@@ -244,7 +263,7 @@ public class Listener {
         return new SimpleSingularListener<>(
                 eventType,
                 listener,
-                phase == null ? EventPhases.DEFAULT_PHASE : phase,
+                requireNonNullElse(phase, DEFAULT_PHASE),
                 priority
         );
     }

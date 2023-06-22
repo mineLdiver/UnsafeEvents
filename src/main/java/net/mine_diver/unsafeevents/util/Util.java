@@ -28,6 +28,9 @@ import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -56,5 +59,20 @@ public class Util {
     ) {
         initializer.accept(object);
         return object;
+    }
+
+    /**
+     * Creates a new set with weak elements.
+     *
+     * <p>
+     *     Useful for storing listeners without
+     *     making them non-GCable.
+     * </p>
+     *
+     * @return a new set with weak elements.
+     * @param <E> the type of elements maintained by this set.
+     */
+    public <E> Set<E> newWeakSet() {
+        return Collections.newSetFromMap(new WeakHashMap<>());
     }
 }

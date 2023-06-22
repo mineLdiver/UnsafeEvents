@@ -24,13 +24,19 @@
 
 package net.mine_diver.unsafeevents.listener;
 
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 /**
  * Default priorities for event listeners.
  *
  * @author mine_diver
  */
+@FieldDefaults(
+        level = AccessLevel.PUBLIC,
+        makeFinal = true
+)
 @RequiredArgsConstructor
 public enum ListenerPriority {
     /**
@@ -71,12 +77,12 @@ public enum ListenerPriority {
     /**
      * The numerical representation of this priority.
      */
-    public final int numPriority;
+    int numPriority;
 
     /**
      * Whether this priority allows for overrides from {@link EventListener#numPriority()}.
      */
-    public final boolean custom;
+    boolean custom;
 
     /**
      * The custom priority constructor.

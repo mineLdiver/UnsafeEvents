@@ -37,11 +37,12 @@ import lombok.experimental.NonFinal;
 import lombok.val;
 import net.mine_diver.unsafeevents.event.EventPhases;
 import net.mine_diver.unsafeevents.event.PhaseOrdering;
-import net.mine_diver.unsafeevents.event.PhaseOrderingInvalidationEvent;
+import net.mine_diver.unsafeevents.event.PhaseOrderingInvalidationCallback;
 import net.mine_diver.unsafeevents.listener.*;
 import net.mine_diver.unsafeevents.util.Util;
 import net.mine_diver.unsafeevents.util.collection.Int2ReferenceArrayMapWrapper;
 import net.mine_diver.unsafeevents.util.exception.DispatchException;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -77,27 +78,7 @@ import java.util.function.IntFunction;
         level = AccessLevel.PROTECTED,
         makeFinal = true
 )
-public class EventBus implements MutableEventBus, AutoCloseable {
-    /**
-     * The mutable access to {@link #MANAGEMENT_BUS}.
-     *
-     * <p>
-     *     Used for registering event buses on instance creation.
-     * </p>
-     */
-    private static final @NotNull MutableEventBus MUTABLE_MANAGEMENT_BUS = new EventBus(true);
-
-    /**
-     * The management event bus.
-     *
-     * <p>
-     *     Used for keeping track of all {@link EventBus} instances
-     *     and dispatching management events to them,
-     *     such as {@link PhaseOrderingInvalidationEvent}.
-     * </p>
-     */
-    public static final @NotNull EventDispatcher MANAGEMENT_BUS = MUTABLE_MANAGEMENT_BUS;
-
+public class EventBus implements MutableEventBus, PhaseOrderingInvalidationCallback {
     /**
      * {@link DeadEvent} fallback.
      *
@@ -217,34 +198,10 @@ public class EventBus implements MutableEventBus, AutoCloseable {
     @NonFinal boolean invalidated;
 
     /**
-     * The {@link #MANAGEMENT_BUS} listener of this event bus.
-     *
-     * <p>
-     *     Used for unregistering the event bus
-     *     from {@link #MANAGEMENT_BUS} on
-     *     discard through {@link #close()}.
-     * </p>
-     */
-    private CompositeListener managedEntry;
-
-    /**
      * Default constructor.
      */
     public EventBus() {
-        this(false);
-    }
-
-    /**
-     * Internal constructor used for {@link #MANAGEMENT_BUS} initialization.
-     *
-     * @param isManagementBus whether it's the management bus itself.
-     */
-    private EventBus(final boolean isManagementBus) {
-        (isManagementBus ? this : MUTABLE_MANAGEMENT_BUS).register(
-                managedEntry = Listener.object()
-                        .listener(this)
-                        .build()
-        );
+        PhaseOrdering.addInvalidationCallback(this);
     }
 
     /**
@@ -329,7 +286,7 @@ public class EventBus implements MutableEventBus, AutoCloseable {
      * <p>
      *     During the compilation process, the listener containers for the specified event
      *     type are sorted according to the event type's phase ordering using the
-     *     {@link PhaseOrdering#sort(SingularListener[])} method. Then,
+     *     {@link PhaseOrdering#getListenerComparator()} comparator. Then,
      *     if there's more than 1 listener in the list, the sorted list of
      *     listeners is used to create a listener registry using the
      *     {@link ListenerRegistryFactory#create(Consumer[])} method.
@@ -339,13 +296,13 @@ public class EventBus implements MutableEventBus, AutoCloseable {
      * @param eventType the event type to compile the registry for.
      * @param <EVENT> the event type to compile the registry for.
      * @see #compileRegistries()
-     * @see PhaseOrdering#sort(SingularListener[])
+     * @see PhaseOrdering#getListenerComparator()
      * @see ListenerRegistryFactory#create(Consumer[])
      */
     private <EVENT extends Event> void compileRegistry(Class<EVENT> eventType) {
         //noinspection unchecked
         final SingularListener<EVENT>[] listenerContainers = (SingularListener<EVENT>[]) listeners.get(eventType);
-        PhaseOrdering.of(eventType).sort(listenerContainers);
+        Arrays.sort(listenerContainers, PhaseOrdering.of(eventType).getListenerComparator());
         //noinspection unchecked
         registries.put(
                 Event.getEventID(eventType),
@@ -369,39 +326,17 @@ public class EventBus implements MutableEventBus, AutoCloseable {
      *     need this.
      * </p>
      *
-     * @param event the phase ordering invalidation event.
+     * @param ordering the event's phase ordering that was invalidated.
+     * @param <EVENT> the event's type whose phase ordering was invalidated.
      * @see PhaseOrdering#addPhaseOrdering(String, String)
      */
-    @EventListener
-    private void onOrderingInvalidation(PhaseOrderingInvalidationEvent event) {
-        if (listeners.containsKey(event.getEventType())) {
-            invalidatedRegistries.add(event.getEventType());
+    @Override
+    @ApiStatus.Internal
+    public <EVENT extends Event> void phaseOrderingInvalidated(final PhaseOrdering<EVENT> ordering) {
+        if (listeners.containsKey(ordering.eventType)) {
+            invalidatedRegistries.add(ordering.eventType);
             invalidated = true;
         }
-    }
-
-    /**
-     * Used for freeing this bus's instance.
-     *
-     * <p>
-     *     Only useful for short-living buses.
-     *     Buses that exist throughout
-     *     the entire lifecycle of the application
-     *     don't really need to call this ever.
-     * </p>
-     *
-     * <p>
-     *     The bus shouldn't be used after this
-     *     method is invoked, as it may lead
-     *     to unexpected behavior.
-     * </p>
-     */
-    @Override
-    public void close() {
-        MUTABLE_MANAGEMENT_BUS.unregister(managedEntry);
-        listeners.clear();
-        //noinspection unchecked
-        registriesArray = new Consumer[0];
     }
 
     /**

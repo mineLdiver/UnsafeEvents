@@ -24,18 +24,36 @@
 
 package net.mine_diver.unsafeevents.listener;
 
-import net.mine_diver.unsafeevents.event.EventPhases;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
+import lombok.val;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.annotation.*;
+import java.util.function.UnaryOperator;
+
+import static java.util.Objects.requireNonNullElse;
+import static net.mine_diver.unsafeevents.event.EventPhases.DEFAULT_PHASE;
 
 /**
  * Indicates that a method should be registered
  * as a listener during bulk register and allows
  * to set listener priority.
  *
+ * <p>
+ *     Can also be used for overriding default
+ *     phase and priority on composite listeners
+ *     such as {@link Listener#staticMethods()} and
+ *     {@link Listener#object()}
+ * </p>
+ *
  * @author mine_diver
  */
-@Target(ElementType.METHOD)
+@Target({
+        ElementType.TYPE,
+        ElementType.METHOD
+})
+@Inherited
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface EventListener {
@@ -63,7 +81,7 @@ public @interface EventListener {
      *
      * @return the event phase of this listener.
      */
-    String phase() default EventPhases.DEFAULT_PHASE;
+    String phase() default DEFAULT_PHASE;
 
     /**
      * Returns the enum priority of the listener.
@@ -88,4 +106,41 @@ public @interface EventListener {
      * @return the numerical priority of the listener.
      */
     int numPriority() default DEFAULT_PRIORITY;
+
+    /**
+     * Common functions for extracting meaningful data from this annotation.
+     *
+     * @author mine_diver
+     */
+    final class Helper {
+        private Helper() {
+            throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+        }
+
+        public static @NotNull String getPhase(final @NotNull EventListener listener) {
+            return getPhase(listener, UnaryOperator.identity());
+        }
+
+        public static @NotNull String getPhase(final @NotNull EventListener listener, final @Nullable String customDefault) {
+            return getPhase(listener, defaultPhase -> requireNonNullElse(customDefault, defaultPhase));
+        }
+
+        public static @NotNull String getPhase(final @NotNull EventListener listener, final @NotNull UnaryOperator<@NotNull String> defaultOverride) {
+            val listenerPhase = listener.phase();
+            return DEFAULT_PHASE.equals(listenerPhase) ? defaultOverride.apply(listenerPhase) : listenerPhase;
+        }
+
+        public static int getPriority(final @NotNull EventListener listener) {
+            return getPriority(listener, Int2IntFunction.identity());
+        }
+
+        public static int getPriority(final @NotNull EventListener listener, final int customDefault) {
+            return getPriority(listener, customPriority -> customPriority == EventListener.DEFAULT_PRIORITY ? customDefault : customPriority);
+        }
+
+        public static int getPriority(final @NotNull EventListener listener, final @NotNull Int2IntFunction customOverride) {
+            val listenerPriority = listener.priority();
+            return listenerPriority.custom ? customOverride.get(listener.numPriority()) : listenerPriority.numPriority;
+        }
+    }
 }
