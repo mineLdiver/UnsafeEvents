@@ -20,6 +20,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static net.mine_diver.unsafeevents.event.EventPhases.DEFAULT_PHASE;
+
 @FieldDefaults(
         level = AccessLevel.PRIVATE,
         makeFinal = true
@@ -66,13 +68,26 @@ public final class PhaseOrdering<EVENT extends Event> {
         this.eventType = eventType;
 
         // add phases from the annotation, in order
-        if (eventType.isAnnotationPresent(EventPhases.class))
-            for (String phase : eventType.getAnnotation(EventPhases.class).value())
-                getOrCreatePhase(phase);
+        var noDefault = true;
+        @Nullable String prevPhase = null;
+        if (eventType.isAnnotationPresent(EventPhases.class)) {
+            for (String phase : eventType.getAnnotation(EventPhases.class).value()) {
+                if (noDefault && DEFAULT_PHASE.equals(phase))
+                    noDefault = false;
+                if (prevPhase == null)
+                    getOrCreatePhase(phase);
+                else
+                    addPhaseOrdering(prevPhase, phase);
+                prevPhase = phase;
+            }
+        }
 
-        // ensure that the default phase was present
-        // or add it ourselves to the end
-        getOrCreatePhase(EventPhases.DEFAULT_PHASE);
+        if (noDefault)
+            if (prevPhase == null)
+                getOrCreatePhase(DEFAULT_PHASE);
+            else
+                addPhaseOrdering(prevPhase, DEFAULT_PHASE);
+
     }
 
     public Comparator<SingularListener<?>> getListenerComparator() {
