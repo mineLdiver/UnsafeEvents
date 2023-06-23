@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id "io.freefair.lombok" version "8.0.1"
 }
 
 sourceCompatibility = JavaVersion.VERSION_17
@@ -44,19 +45,11 @@ dependencies {
 
     implementation 'it.unimi.dsi:fastutil:8.5.8'
 
-    compileOnly 'org.projectlombok:lombok:1.18.24'
-    annotationProcessor 'org.projectlombok:lombok:1.18.24'
-
     implementation 'org.jetbrains:annotations:23.0.0'
 
     jmhImplementation 'org.openjdk.jmh:jmh-core:1.35'
     jmhImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
     jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
-    jmhCompileOnly 'org.projectlombok:lombok:1.18.24'
-    jmhAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
-
-    testCompileOnly 'org.projectlombok:lombok:1.18.24'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
 }
 
 test {
@@ -64,7 +57,7 @@ test {
 }
 
 task jmh(type: JavaExec, dependsOn: jmhClasses) {
-    main = 'org.openjdk.jmh.Main'
+    mainClass = 'org.openjdk.jmh.Main'
     classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
 }
 

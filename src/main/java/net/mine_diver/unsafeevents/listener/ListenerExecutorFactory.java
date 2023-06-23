@@ -40,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
-import static net.mine_diver.unsafeevents.util.UnsafeProvider.IMPL_LOOKUP;
+import static net.mine_diver.unsafeevents.util.UnsafeProvider.*;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
