@@ -164,12 +164,14 @@ public abstract class Event {
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
-        return EVENT_ID_LOOKUP.computeIfAbsent(
-                eventType,
-                // if clinit didn't add an ID to the lookup,
-                // get the ID from the event class itself
-                ID_GETTER
-        );
+        val clinitId = EVENT_ID_LOOKUP.getInt(eventType);
+        if (clinitId > -1)
+            return clinitId;
+        // if clinit didn't add an ID to the lookup,
+        // get the ID from the event class itself.
+        val extractedId = ID_GETTER.applyAsInt(eventType);
+        EVENT_ID_LOOKUP.put(eventType, extractedId);
+        return extractedId;
     }
 
     /**
