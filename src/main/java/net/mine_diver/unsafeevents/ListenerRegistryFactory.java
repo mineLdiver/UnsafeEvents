@@ -33,7 +33,6 @@ import org.objectweb.asm.Type;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 import java.util.function.Consumer;
 
 import static org.objectweb.asm.Opcodes.*;
@@ -86,16 +85,15 @@ class ListenerRegistryFactory {
         for (int i = 0; i < registrySize; i++)
             writer.visitField(ACC_PRIVATE, String.valueOf(i), Type.getType(Consumer.class).getDescriptor(), null, null).visitEnd();
         // Generate constructor
-        val corDesc = new StringBuilder();
-        for (int i = 0; i < registrySize; i++)
-            corDesc.append(Type.getType(Consumer.class).getDescriptor());
-        MethodVisitor methodGenerator = writer.visitMethod(ACC_PUBLIC, "<init>", "(" + corDesc + ")V", null, null);
+        MethodVisitor methodGenerator = writer.visitMethod(ACC_PUBLIC, "<init>", "(" + Type.getDescriptor(Consumer[].class) + ")V", null, null);
         methodGenerator.visitCode();
         methodGenerator.visitVarInsn(ALOAD, 0);
         methodGenerator.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
         for (int i = 0; i < registrySize; i++) {
             methodGenerator.visitVarInsn(ALOAD, 0);
-            methodGenerator.visitVarInsn(ALOAD, i + 1);
+            methodGenerator.visitVarInsn(ALOAD, 1);
+            methodGenerator.visitLdcInsn(i);
+            methodGenerator.visitInsn(AALOAD);
             methodGenerator.visitFieldInsn(PUTFIELD, ListenerRegistryFactory.CLASS_NAME, String.valueOf(i), Type.getType(Consumer.class).getDescriptor());
         }
         methodGenerator.visitInsn(RETURN);
@@ -129,7 +127,7 @@ class ListenerRegistryFactory {
     ) {
         val executorClass = ListenerRegistryFactory.<EVENT>generateExecutor(listeners.length);
         try {
-            return executorClass.getConstructor(Arrays.stream(listeners).map(listener -> Consumer.class).toArray(Class[]::new)).newInstance((Object[]) listeners);
+            return executorClass.getConstructor(Consumer[].class).newInstance((Object) listeners);
         } catch (final InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new RuntimeException("Unable to initialize " + executorClass, e);
         }
