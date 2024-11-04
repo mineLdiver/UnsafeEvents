@@ -64,6 +64,18 @@ task jmh(type: JavaExec, dependsOn: jmhClasses) {
 classes.finalizedBy(jmhClasses)
 
 publishing {
+    repositories {
+        if (project.hasProperty("glass_maven_username")) {
+            maven {
+                url = "https://maven.glass-launcher.net/releases"
+                credentials {
+                    username = "${project.properties["glass_maven_username"]}"
+                    password = "${project.properties["glass_maven_password"]}"
+                }
+            }
+        }
+    }
+
     publications {
         mavenJava(MavenPublication) {
             groupId = group
