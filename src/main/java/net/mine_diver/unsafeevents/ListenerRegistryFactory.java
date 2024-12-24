@@ -125,6 +125,14 @@ class ListenerRegistryFactory {
     <EVENT extends Event> @NotNull Consumer<@NotNull EVENT> create(
             final @NotNull Consumer<@NotNull EVENT> @NotNull [] listeners
     ) {
+        if (listeners.length > 6553) {
+            // it's impossible to generate a flat method
+            // that invokes more than 2^16/10 listeners,
+            // so we have to fall back to simple array iteration
+            return event -> {
+                for (val listener : listeners) listener.accept(event);
+            };
+        }
         val executorClass = ListenerRegistryFactory.<EVENT>generateExecutor(listeners.length);
         try {
             return executorClass.getConstructor(Consumer[].class).newInstance((Object) listeners);
