@@ -31,7 +31,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import lombok.val;
 import net.mine_diver.unsafeevents.event.Cancelable;
-import net.mine_diver.unsafeevents.util.UnsafeProvider;
 import net.mine_diver.unsafeevents.util.Util;
 import org.jetbrains.annotations.NotNull;
 
@@ -44,20 +43,23 @@ import java.util.function.ToIntFunction;
  * The basic abstract event class.
  *
  * <p>
- *     Every event type must implement {@link Event#getEventID()} that returns
- *     a constant ID of the event obtained through invoking
- *     {@link Event#INTERNAL_NEXT_ID}'s {@link AtomicInteger#incrementAndGet()} method once
- *     and storing the value in a static final field.
- * </p>
- *
- * <p>
  *     An event type can declare itself as cancelable by overriding
- *     {@link Event#isCancelable()} and returning true.
+ *     {@link Event#isCancelable()} and returning true,
+ *     or annotating itself with {@link Cancelable}.
  * </p>
  *
  * <p>
  *     An instance of an event type can carry any data in the fields
  *     and have any method declared.
+ * </p>
+ *
+ * <p>
+ *     To enable faster dispatch, an event type can cache its ID
+ *     in a static field using {@link #nextID()} and return
+ *     the cached ID in the overridden {@link #getEventID()}.
+ *     This can also be automatically added to all event types
+ *     in the environment by passing them through
+ *     {@link net.mine_diver.unsafeevents.transform.EventSubclassTransformer}.
  * </p>
  *
  * <p>
@@ -102,29 +104,16 @@ public abstract class Event {
      * @see #getEventID()
      * @see #getEventID(Class)
      */
-    private static final @NotNull AtomicInteger INTERNAL_NEXT_ID = new AtomicInteger();
+    private static final @NotNull AtomicInteger NEXT_ID = new AtomicInteger();
 
     /**
-     * @deprecated this is dangerous to use. Use {@link #nextID()} instead.
-     */
-    @Deprecated(forRemoval = true)
-    protected static final @NotNull AtomicInteger NEXT_ID = INTERNAL_NEXT_ID;
-
-    /**
-     * Global event type to event ID lookup,
+     * Global event type to event ID lookup.
      *
      * @see Event#getEventID(Class)
      */
     private static final @NotNull Reference2IntMap<@NotNull Class<? extends Event>> EVENT_ID_LOOKUP = Util.make(new Reference2IntOpenHashMap<>(), map -> map.defaultReturnValue(-1));
 
-    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GETTER = eventType -> {
-        try {
-            return ((Event) UnsafeProvider.theUnsafe.allocateInstance(eventType)).getEventID();
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e);
-        }
-    };
-    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventType -> INTERNAL_NEXT_ID.incrementAndGet();
+    private static final @NotNull ToIntFunction<@NotNull Class<? extends Event>> ID_GENERATOR = eventType -> NEXT_ID.incrementAndGet();
 
     /**
      * Returns the event ID of the specified event type from {@link Event#EVENT_ID_LOOKUP}.
@@ -141,37 +130,21 @@ public abstract class Event {
     public static <EVENT extends Event> int getEventID(
             final @NotNull Class<EVENT> eventType
     ) {
-        /*
-            Due to backwards compatibility,
-            we have to get the ID from a dummy event instance.
-
-            There's a couple of scenarios:
-            1) The event is optimized and used #nextID on clinit,
-                in which case ID_GETTER will simply return
-                the statically cached ID.
-            2) The event is unoptimized, in which case the fallback
-                #getEventID from the base event class will be called
-                which will generate a new ID.
-
-            The first scenario also handles deprecated #NEXT_ID calls.
-         */
         val eventId = EVENT_ID_LOOKUP.getInt(eventType);
-        if (eventId > -1)
-            return eventId;
+        if (eventId > -1) return eventId;
+
         try {
-            // try forcing clinit first
+            // maybe the event class wasn't initialized yet,
+            // so this will force invocation of #nextID
+            // if the event is optimized
             MethodHandles.lookup().ensureInitialized(eventType);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
+        } catch (IllegalAccessException ignored) {}
         val clinitId = EVENT_ID_LOOKUP.getInt(eventType);
-        if (clinitId > -1)
-            return clinitId;
-        // if clinit didn't add an ID to the lookup,
-        // get the ID from the event class itself.
-        val extractedId = ID_GETTER.applyAsInt(eventType);
-        EVENT_ID_LOOKUP.put(eventType, extractedId);
-        return extractedId;
+        if (clinitId > -1) return clinitId;
+
+        // the event is unoptimized,
+        // falling back to map lookup
+        return EVENT_ID_LOOKUP.computeIfAbsent(eventType, ID_GENERATOR);
     }
 
     /**
@@ -261,6 +234,6 @@ public abstract class Event {
      * @return the event's ID.
      */
     protected int getEventID() {
-        return EVENT_ID_LOOKUP.computeIfAbsent(getClass(), ID_GENERATOR);
+        return getEventID(getClass());
     }
 }
