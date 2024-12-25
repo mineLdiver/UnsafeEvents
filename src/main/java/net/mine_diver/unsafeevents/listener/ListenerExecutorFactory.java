@@ -40,7 +40,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
-import static net.mine_diver.unsafeevents.util.UnsafeProvider.*;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -54,6 +53,8 @@ import static org.objectweb.asm.Opcodes.*;
  */
 @UtilityClass
 final class ListenerExecutorFactory {
+    private final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+
     /**
      * Generates and defines a high performance executor.
      *
@@ -66,17 +67,50 @@ final class ListenerExecutorFactory {
             final @NotNull Method method,
             final @NotNull Class<EVENT> eventType
     ) {
+        final @NotNull MethodHandles.Lookup lookup;
+        val declaringClass = method.getDeclaringClass();
+        if (Modifier.isPublic(method.getModifiers()))
+            // we can use our own lookup
+            // no need to invade the class's privacy
+            lookup = LOOKUP;
+        else {
+            try {
+                // need to make sure the class got
+                // the opportunity to give up its
+                // privileged lookup
+                LOOKUP.ensureInitialized(declaringClass);
+            } catch (IllegalAccessException ignored) {
+                // the lookup could still have been
+                // registered through other means
+            }
+            lookup = Listener.LOOKUPS.get(declaringClass);
+        }
+        if (lookup == null) throw new IllegalStateException("""
+                Non-public method "%s" of class "%s" was attempted to be registered \
+                as a listener of the event "%s", but there's no privileged lookup \
+                registered for this method's class!\
+                """
+                .formatted(
+                        method.getName(),
+                        declaringClass.getName(),
+                        eventType.getName()
+                )
+        );
         try {
             //noinspection unchecked
-            return (Class<? extends Consumer<@NotNull EVENT>>)
-                    MethodHandles.privateLookupIn(method.getDeclaringClass(), IMPL_LOOKUP).defineHiddenClass(
+            return (Class<? extends Consumer<@NotNull EVENT>>) lookup
+                    .defineHiddenClass(
                             generateExecutorClass(
                                     method,
-                                    method.getDeclaringClass().getName().replace('.', '/') + "$$UnsafeEvents$ListenerExecutor",
+                                    lookup.lookupClass().getName().replace('.', '/')
+                                            + "$$UnsafeEvents$ListenerExecutor",
                                     eventType
                             ),
-                            true, MethodHandles.Lookup.ClassOption.NESTMATE
-                    ).lookupClass().asSubclass(Consumer.class);
+                            true,
+                            MethodHandles.Lookup.ClassOption.NESTMATE
+                    )
+                    .lookupClass()
+                    .asSubclass(Consumer.class);
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }

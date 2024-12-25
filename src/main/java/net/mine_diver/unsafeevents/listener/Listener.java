@@ -25,6 +25,8 @@
 package net.mine_diver.unsafeevents.listener;
 
 import com.google.common.collect.ImmutableList;
+import it.unimi.dsi.fastutil.objects.Reference2ReferenceMap;
+import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import lombok.Builder;
 import lombok.experimental.UtilityClass;
 import lombok.val;
@@ -37,6 +39,7 @@ import net.mine_diver.unsafeevents.util.exception.listener.InvalidMethodParamete
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
@@ -106,6 +109,12 @@ import static net.mine_diver.unsafeevents.listener.EventListener.Helper.getPrior
  */
 @UtilityClass
 public class Listener {
+    final Reference2ReferenceMap<Class<?>, MethodHandles.Lookup> LOOKUPS = new Reference2ReferenceOpenHashMap<>();
+
+    public void registerLookup(MethodHandles.Lookup lookup) {
+        LOOKUPS.put(lookup.lookupClass(), lookup);
+    }
+
     @Builder(
             builderMethodName = "staticMethods",
             builderClassName = "StaticListenerBuilder"
